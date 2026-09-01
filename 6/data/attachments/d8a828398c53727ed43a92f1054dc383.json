@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "bio must be at most 500 characters long"
+  },
+  "timestamp": "2026-09-01T07:47:27.780017275Z",
+  "request_id": "45411cef-776b-40ff-970a-0a4c2225b855"
+}
