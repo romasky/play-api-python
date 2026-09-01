@@ -29,12 +29,13 @@ Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
 
 ## 3. Environment caveats on this machine
 
-- `uv` is **not installed** and system Python is 3.9 → bootstrap first:
-  `brew install uv && uv python install 3.12 && uv sync` (creates `.venv` + `uv.lock`; commit the lock).
-- Nothing in this repo has been executed yet — the skeleton was written blind (2026-09-01). First
-  task of the next session: `uv sync`, then `uv run pytest --co -q` and fix import/parse errors.
+- Bootstrapped 2026-09-01: `brew install uv` (0.12.8) → `uv python install 3.12` (3.12.14) → `uv sync`
+  (`.venv` + `uv.lock`, committed). `uv` lives in `/opt/homebrew/bin`, uv-managed Pythons in `~/.local/bin` —
+  in a non-login shell prefix commands with `export PATH="/opt/homebrew/bin:$PATH"`.
+- System Python is 3.9 — never run `python3 …` for project code; always `uv run …`.
 - `.env` is git-ignored; copy `.env.example`. Defaults in `src/play_api/config.py` work without it.
 - Git remote uses the SSH alias `github.com-romasky` (plain `github.com` has no key for this account).
+- Node 22 is installed (`npx allure@3` works).
 
 ## 4. Layout
 
@@ -49,11 +50,13 @@ src/play_api/
   models/responses.py            # pydantic contracts + assert_* helpers (error code, request_id, login, user core fields, list/no-field, messages/no-full-body)
   utils/json_path.py             # get_path / has_path (typed dotted-path checks; never substring matching)
   utils/generator.py             # random data with the API's exact shapes
+  utils/gherkin.py               # raw_json(): unescapes \" in `… with raw body "{…}"` step args before json.loads
 tests/
   conftest.py                    # pytest_plugins (step modules), ctx/global_ctx fixtures, pytest_bdd_apply_tag (@allure.label.* → allure_label), rate-limit pacing
   test_features.py               # scenarios("play_qa_api") — binds every feature file
   steps/{common,accounts,mail,health,basic_auth,options}_steps.py   # ← the porting work happens here
 docs/API_REFERENCE.md            # API contract (error codes, validation rules) — ground truth for expectations
+tools/check_steps.py             # OFFLINE: every feature step ↔ exactly one step def (pytest --co does NOT check this)
 allure-results/categories.json   # committed; never --clean-alluredir
 .github/workflows/test.yml       # uv + pytest → npx allure@3 generate → GitHub Pages (same layout as JS)
 ```
@@ -73,12 +76,9 @@ allure-results/categories.json   # committed; never --clean-alluredir
 | `getPath / hasPath` | `get_path / has_path` (arrays: `"messages.0.subject"`) |
 | `Before({tags: …})` sleeps | `_rate_limit_pacing` autouse fixture in `conftest.py` (reads allure_label markers) |
 | `@allure.label.epic:X` tags | translated by `pytest_bdd_apply_tag` → `pytest.mark.allure_label("X", label_type="epic")` |
-| `Then … (Cucumber And/Then interchangeable)` | pytest-bdd matches by text only; decorate with the natural keyword (`@then`) — `And` inherits the previous keyword |
+| `Then … (Cucumber And/Then interchangeable)` | pytest-bdd matches by text **and keyword** (`And` inherits the previous one). Assertions → `@then`, HTTP actions → `@when`/`@given`; data-setup steps that the features use after Given *and* When/Then (`Extract`, `Generate …`, `Save …`, `Get and check status code`) → keyword-agnostic `@step` |
 
-Steps already ported as examples of the pattern: `common_steps.py` (Save string, Generate email,
-Extract, status code, field equals / not null / absent), `accounts_steps.py` (Create minimal user,
-Patch × 3 auth variants, Assert error code), `health_steps.py`, `basic_auth_steps.py`,
-`options_steps.py` (complete). `mail_steps.py` is an empty shell.
+All six step modules are fully ported (94 step definitions; `tools/check_steps.py` → 181 scenarios / 1082 steps, 0 missing, 0 ambiguous).
 
 ## 6. Conventions (inherited from the JS/Java projects — MUST follow)
 
@@ -98,12 +98,12 @@ Patch × 3 auth variants, Assert error code), `health_steps.py`, `basic_auth_ste
 
 ## 7. Porting plan (tick as you go)
 
-- [ ] **P0 Bootstrap** — `brew install uv`, `uv python install 3.12`, `uv sync`, `uv run pytest --co -q` collects 181 items with **no** `StepDefinitionNotFoundError` for the 6 completed modules (expect many for the unported ones).
-- [ ] **P1 common_steps.py** — port every generic step from `src/steps/commonSteps.js` (generators, header asserts, `is one of`, `not a server error`, `contains`, `is present`, `body is empty`, `has request_id`, context asserts, `Print response`).
-- [ ] **P2 accounts_steps.py** — port `src/steps/accountsSteps.js` completely (create × 5, Set employment/theme/interests/bio, username of length, GET user, list + string page/per_page, exists HEAD/GET, update/patch/delete/logout × {token, raw auth header, no auth token}, login, typed assertions).
-- [ ] **P3 mail_steps.py** — port `src/steps/mailSteps.js` + `assert_messages_have_no_full_body`.
-- [ ] **P4 Green run** — `uv run pytest -m Smoke` (17) then full run (≈10 min); compare with JS: 181 passed. Check `/api/v1/health` first — the origin behind Cloudflare sometimes returns 521 for minutes.
-- [ ] **P5 Allure** — `npx allure@3 generate allure-results -o allure-report && npx allure@3 open allure-report`; verify Epic/Suite/SubSuite/Story tree and that each HTTP call is a nested step with Request/Response attachments.
+- [x] **P0 Bootstrap** (2026-09-01) — `brew install uv`, `uv python install 3.12`, `uv sync`, `uv run pytest --co -q` collects 181 items with **no** `StepDefinitionNotFoundError` for the 6 completed modules (expect many for the unported ones).
+- [x] **P1 common_steps.py** — port every generic step from `src/steps/commonSteps.js` (generators, header asserts, `is one of`, `not a server error`, `contains`, `is present`, `body is empty`, `has request_id`, context asserts, `Print response`).
+- [x] **P2 accounts_steps.py** — port `src/steps/accountsSteps.js` completely (create × 5, Set employment/theme/interests/bio, username of length, GET user, list + string page/per_page, exists HEAD/GET, update/patch/delete/logout × {token, raw auth header, no auth token}, login, typed assertions).
+- [x] **P3 mail_steps.py** — port `src/steps/mailSteps.js` + `assert_messages_have_no_full_body`.
+- [x] **P4 Green run** (2026-09-01) — Smoke 17/17 (40 s); full run **181 passed in 8 min 16 s** (JS: ≈10 min). First attempt hit a 521 origin outage (~3 min), second surfaced the h11 header-trim issue (6 "empty Bearer" scenarios) — both recorded in §8/§9. Always `curl /api/v1/health` first.
+- [x] **P5 Allure** (2026-09-01) — `npx allure@3 generate allure-results -o allure-report` → 181/181; Epic→Suite→SubSuite tree = 18 sub-suites with the exact per-feature counts; 298 HTTP sub-steps, 838 attachments. (`summary.json` "total" can look odd when results contain retries — check `data/test-results/*.json` labels instead.)
 - [ ] **P6 CI** — push, confirm the workflow (uv + pytest + Allure 3 → gh-pages `/latest/`) is green; add `BASE_URL` repo variable if needed.
 - [ ] **P7 Docs** — README (stack, structure, coverage table, scenario counts — mirror the JS README), then a wiki like https://github.com/romasky/play-api-js/wiki.
 - [ ] **P8 Python-only upgrades (optional)** — response contracts for every 2xx shape (already partly in `responses.py`), `Faker` for richer data, `ruff` + `mypy` in CI.
@@ -121,20 +121,26 @@ Patch × 3 auth variants, Assert error code), `health_steps.py`, `basic_auth_ste
 
 - `allure-pytest-bdd` does **not** parse `@allure.label.*` Gherkin tags (checked in its source: only `allure_label` markers) — the `pytest_bdd_apply_tag` hook in `conftest.py` does it. `allure-behave` would do it natively; irrelevant here.
 - allure-python has no per-step *parameters* (JS used `ctx.parameter`) — `client.request()` attaches small JSON/TEXT attachments instead. `allure.attach` is sync, so the JS "attachment after step closed" race does not exist.
-- `httpx` strips nothing from header values, but the server trims OWS per RFC 7230, so `"Bearer "` ≡ `"Bearer"` → `INVALID_TOKEN_FORMAT` either way (same as JS, where axios trims).
+- h11 (httpx's HTTP/1.1 layer) **refuses to send** a header value with surrounding whitespace (`LocalProtocolError: Illegal header value b'Bearer '`) — found on the first full run (6 "empty Bearer" scenarios). `client.request()` therefore trims header values before sending, which is exactly what axios did in the JS port, so `"Bearer "` reaches the server as `"Bearer"` → `INVALID_TOKEN_FORMAT`. The Allure attachment still shows the untrimmed value.
 - `Get and check status code {code:d} from "{var}"` is used after `Then` **and** `When` in the features — it is registered with both decorators.
 - `pytest -m` marker names come from tags; tags with dots/colons never reach `pytest.mark` because the hook converts them (otherwise pytest warns about unknown marks).
 - Do not use `--clean-alluredir` — it would delete the committed `allure-results/categories.json`.
 - `pytest-bdd` 8 requires the file to start with `Feature:` and tags without spaces — the copied features already comply.
+- **`pytest --co` does NOT detect undefined steps** — pytest-bdd 8 resolves step definitions at runtime, one scenario at a time — and it never reports *ambiguous* steps at all (two matching definitions → one silently wins by fixture-resolution order). Run `uv run python tools/check_steps.py` (offline, < 1 s) — it reports both.
+- `parsers.parse` `{name}` is `.+?` → needs ≥ 1 char. `Set interests ""` (CreateUserTests:79) therefore uses `parsers.re(r'Set interests "(?P<csv>.*)"')`.
+- Cucumber's `{string}` unescaped `\"`; pytest-bdd passes step text verbatim → `… with raw body "{\"email\":…}"` must go through `utils.gherkin.raw_json()`.
+- `ctx.body()` returns the raw text for non-JSON bodies (Cloudflare 521 HTML) so failures read "Field 'id' not found … Body: <!DOCTYPE html>…521: Web server is down" (status *failed*, category "API Defects") rather than a JSONDecodeError (*broken*). A whole run failing that way = origin outage, re-run later.
+- Registering one function with both `@when` and `@then` is not needed (and fragile) — use `@step`.
 
 ## 10. Useful commands
 
 ```bash
 uv sync                                   # install
-uv run pytest --co -q                     # collect only — catches undefined steps early
+uv run pytest --co -q                     # collect only — 181 items; does NOT check step definitions
+uv run python tools/check_steps.py        # offline: every step ↔ exactly one step definition (run this first)
 uv run pytest -m Smoke                    # 17 scenarios, ~1 min
-uv run pytest -k "empty Bearer"           # by scenario name
-uv run pytest features/play_qa_api/TokenSecurityTests.feature   # one feature (pytest-bdd path selection)
+uv run pytest -k empty_bearer               # by scenario name (test ids are snake_case)
+uv run pytest -k "empty_bearer or malformed_authorization"   # by test-name substring — feature-file paths do NOT work with scenarios()
 BASE_URL=https://staging.play-qa.com uv run pytest
 npx --yes allure@3 generate allure-results -o allure-report && npx --yes allure@3 open allure-report
 ```

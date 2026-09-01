@@ -56,5 +56,16 @@ class ScenarioContext:
         return self.get(var_name, fail_if_missing=True)
 
     def body(self, var_name: str) -> Any:
+        """Parsed JSON body of a saved response; None for an empty body.
+
+        Non-JSON content (e.g. a Cloudflare 521 HTML page) is returned as text, like axios
+        `res.data` in the JS port — so assertions fail with "Field … not found. Body: <html…"
+        instead of a JSONDecodeError traceback.
+        """
         res = self.response(var_name)
-        return res.json() if res.content else None
+        if not res.content:
+            return None
+        try:
+            return res.json()
+        except ValueError:
+            return res.text

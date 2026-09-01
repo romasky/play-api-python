@@ -6,8 +6,11 @@ Design (keep it):
   bodies attached as JSON.
 * httpx never raises on 4xx/5xx, so no `validateStatus` equivalent is needed; steps assert
   on the returned `Response`.
-* `headers` are passed verbatim — that is what lets steps send a raw `Authorization`
-  value (`"Bearer "`, `"Basic …"`) or omit the header entirely (→ MISSING_TOKEN).
+* `headers` are passed through untouched except for one normalisation: surrounding
+  whitespace is trimmed, because h11 (httpx's HTTP/1.1 layer) refuses to send a value such
+  as `"Bearer "` (RFC 7230 field-value grammar) and raises LocalProtocolError. axios trims
+  the same way, so this is exactly what the JS port put on the wire (→ INVALID_TOKEN_FORMAT).
+  Steps can still send any raw `Authorization` value or omit the header (→ MISSING_TOKEN).
 """
 
 from __future__ import annotations
@@ -47,7 +50,9 @@ def request(
         if body is not None:
             allure.attach(json.dumps(body, indent=2, ensure_ascii=False), "Request Body", allure.attachment_type.JSON)
 
-        response = _client.request(method, path, json=body, params=params, headers=headers)
+        # Attachment above shows the header exactly as the step wrote it; the wire gets the trimmed value.
+        wire_headers = {k: v.strip() for k, v in headers.items()} if headers else headers
+        response = _client.request(method, path, json=body, params=params, headers=wire_headers)
 
         allure.attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
         if response.content:
