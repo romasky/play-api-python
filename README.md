@@ -4,9 +4,8 @@
 [![Allure Report](https://img.shields.io/badge/Allure-Report-brightgreen)](https://romasky.github.io/play-api-python/latest/)
 
 **play-api-python** is a BDD API test automation framework for [play-qa.com](https://www.play-qa.com), built with
-Python 3.12, pytest + pytest-bdd, pydantic 2, httpx and Allure Report 3. It is the Python port of
-[play-api-js](https://github.com/romasky/play-api-js) (itself a port of
-[play-api-java](https://github.com/romasky/play-api-java)) and runs the **same 18 feature files** unchanged.
+Python 3.12, pytest + pytest-bdd, pydantic 2, httpx and Allure Report 3 — 181 Gherkin scenarios in 18 feature files
+covering 19 endpoints of a user-management and temporary-mail API.
 
 ---
 
@@ -18,7 +17,7 @@ Python 3.12, pytest + pytest-bdd, pydantic 2, httpx and Allure Report 3. It is t
 
 ## ✨ Key Highlights
 
-- **BDD scenarios** — Gherkin feature files (identical to the JS/Java projects) covering positive, negative and end-to-end flows
+- **BDD scenarios** — human-readable Gherkin feature files covering positive, negative and end-to-end flows
 - **181 scenarios across 18 feature files** — covering 19 API endpoints, including Bearer and Basic auth
 - **Allure 3 HTML reports** — Epic → Suite → SubSuite → Story hierarchy, every HTTP call a nested step with request/response attachments, auto-published to GitHub Pages on every CI run
 - **Token-security regression guards** — absent / empty / malformed `Authorization` headers and cross-account (IDOR) attempts; every negative scenario asserts **both** the HTTP status and `error.code`
@@ -86,7 +85,7 @@ play-api-python/
 │       ├── health_steps.py        # GET /health
 │       ├── basic_auth_steps.py    # GET /auth/basic
 │       └── options_steps.py       # OPTIONS /users/options
-└── features/play_qa_api/          # 18 feature files — copied verbatim from play-api-js
+└── features/play_qa_api/          # 18 feature files — the executable specification
     ├── CreateUserTests.feature
     ├── GetUserTests.feature
     ├── ListUsersTests.feature
@@ -147,7 +146,7 @@ BASE_URL=https://www.play-qa.com
 REQUEST_TIMEOUT=20
 ```
 
-`REQUEST_TIMEOUT` is the single httpx deadline (connect + read) in **seconds** — the JS port used milliseconds.
+`REQUEST_TIMEOUT` is the single httpx deadline (connect + read) in **seconds**.
 Environment variables override `.env`: `BASE_URL=https://staging.play-qa.com uv run pytest`.
 
 ---
@@ -226,20 +225,6 @@ Scenario Outlines are counted per example row.
 
 ---
 
-## 🔁 Porting notes (JS → Python)
-
-| play-api-js | play-api-python |
-|---|---|
-| Cucumber `{string}` / `{int}` | `parsers.parse('… "{name}" …')` / `{name:d}` |
-| Any keyword matches any step | pytest-bdd matches by keyword — steps used after Given **and** When/Then use `@step` |
-| `{string}` unescapes `\"` | `utils.gherkin.raw_json()` unescapes before `json.loads` |
-| `createUserReq({...})` strips `undefined` | `CreateUserReq(...).to_body()` → `model_dump(exclude_none=True)` |
-| `*Response.js` hand-written presence checks | pydantic contracts, also auto-applied to every 2xx response in `client.request()` |
-| `Before({tags})` sleeps | `_rate_limit_pacing` autouse fixture reads `allure_label` markers |
-| `@allure.label.*` handled by allure-cucumberjs | `pytest_bdd_apply_tag` hook → `pytest.mark.allure_label` |
-
----
-
 ## 📚 Documentation
 
 Full documentation lives in the [project wiki](https://github.com/romasky/play-api-python/wiki):
@@ -250,14 +235,11 @@ Full documentation lives in the [project wiki](https://github.com/romasky/play-a
 [Authorization Header Testing](https://github.com/romasky/play-api-python/wiki/Authorization-Header-Testing) ·
 [Feature Files & Coverage](https://github.com/romasky/play-api-python/wiki/Feature-Files-and-Coverage) ·
 [Allure Reporting](https://github.com/romasky/play-api-python/wiki/Allure-Reporting) ·
-[CI/CD](https://github.com/romasky/play-api-python/wiki/CI-CD) ·
-[Comparison: Python vs JS vs Java](https://github.com/romasky/play-api-python/wiki/Comparison-Python-vs-JS)
+[CI/CD](https://github.com/romasky/play-api-python/wiki/CI-CD)
 
 ---
 
 ## 🔗 Related
 
-- [play-api-js](https://github.com/romasky/play-api-js) — JavaScript version (reference implementation) · [wiki](https://github.com/romasky/play-api-js/wiki)
-- [play-api-java](https://github.com/romasky/play-api-java) — Java version
 - [play-qa.com](https://www.play-qa.com) — The API under test
 - [Swagger UI](https://play-qa.com/swagger/index.html) — Interactive API docs
