@@ -4,6 +4,7 @@ and rate-limit pacing (port of the Before hooks in src/steps/accountsSteps.js)."
 from __future__ import annotations
 
 import time
+from typing import Any
 
 import pytest
 
@@ -22,14 +23,15 @@ pytest_plugins = [
 
 # ─── Scenario context ──────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="session")
-def global_ctx() -> dict:
+def global_ctx() -> dict[str, Any]:
     """`_g` store — survives across scenarios for the whole run."""
     return {}
 
 
 @pytest.fixture
-def ctx(global_ctx) -> ScenarioContext:
+def ctx(global_ctx: dict[str, Any]) -> ScenarioContext:
     """Per-scenario context (local store) layered over the global one."""
     return ScenarioContext(global_ctx)
 
@@ -56,6 +58,7 @@ def pytest_bdd_apply_tag(tag: str, function):
 #
 # JS: Before({tags:'@allure.label.suite:User_Management'}) → sleep 2 s
 #     Before({tags:'@allure.label.subSuite:Login'})        → sleep 13 s  (5 login/min)
+
 
 def _labels(request, label_type: str) -> set[str]:
     return {

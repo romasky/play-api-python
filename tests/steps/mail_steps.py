@@ -9,8 +9,8 @@ from play_api.models.requests import CreateMailboxReq, SendMessageReq
 from play_api.models.responses import assert_messages_have_no_full_body
 from play_api.utils.gherkin import raw_json
 
-
 # ─── Create mailbox ────────────────────────────────────────────────────────
+
 
 @when(parsers.parse('Create mailbox and save response as "{var}"'))
 def create_mailbox(ctx, var):
@@ -44,6 +44,7 @@ def create_mailbox_raw(ctx, raw, var):
 
 # ─── Get / delete mailbox ──────────────────────────────────────────────────
 
+
 @when(parsers.parse('Get mailbox with token "{token_key}" and save response as "{var}"'))
 def get_mailbox(ctx, token_key, var):
     ctx.save(var, client.get(paths.mail_get(ctx.str(token_key))))
@@ -56,6 +57,7 @@ def delete_mailbox(ctx, token_key, var):
 
 # ─── Messages ──────────────────────────────────────────────────────────────
 
+
 @when(parsers.parse('Get messages for token "{token_key}" and save response as "{var}"'))
 def get_messages(ctx, token_key, var):
     ctx.save(var, client.get(paths.mail_messages(ctx.str(token_key))))
@@ -66,7 +68,11 @@ def get_message(ctx, msg_id_key, token_key, var):
     ctx.save(var, client.get(paths.mail_message(ctx.str(token_key), ctx.str(msg_id_key))))
 
 
-@when(parsers.parse('Send message to token "{token_key}" from "{from_key}" subject "{subject_key}" body "{body_key}" and save response as "{var}"'))
+@when(
+    parsers.parse(
+        'Send message to token "{token_key}" from "{from_key}" subject "{subject_key}" body "{body_key}" and save response as "{var}"'  # noqa: E501
+    )
+)
 def send_message(ctx, token_key, from_key, subject_key, body_key, var):
     body = SendMessageReq(**{"from": ctx.str(from_key)}, subject=ctx.str(subject_key), body=ctx.str(body_key))
     ctx.save(var, client.post(paths.mail_send(ctx.str(token_key)), body.to_body()))
@@ -78,6 +84,7 @@ def send_message_raw(ctx, token_key, raw, var):
 
 
 # ─── Typed list-shape assertion ────────────────────────────────────────────
+
 
 @then(parsers.parse('Assert messages list "{var}" items have no full body'))
 def assert_messages_no_full_body(ctx, var):

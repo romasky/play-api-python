@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from pytest_bdd.parser import FeatureParser  # noqa: E402
-
 from tests.conftest import pytest_plugins  # noqa: E402  # the authoritative list of step modules
 
 
@@ -49,11 +48,14 @@ def main() -> int:
                 for step in template.render(context).steps:
                     steps += 1
                     hits = [
-                        name for name, sc in defs
+                        name
+                        for name, sc in defs
                         if (sc.type is None or sc.type == step.type) and sc.parser.is_matching(step.name)
                     ]
                     if not hits:
-                        missing.append(f"{Path(feature_file).relative_to(ROOT)}:{step.line_number} [{step.type}] {step.name}")
+                        missing.append(
+                            f"{Path(feature_file).relative_to(ROOT)}:{step.line_number} [{step.type}] {step.name}"
+                        )
                     elif len(hits) > 1:
                         ambiguous.setdefault(step.name, hits)
 

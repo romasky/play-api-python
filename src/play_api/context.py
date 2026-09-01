@@ -13,7 +13,10 @@ local store does not need to be keyed by scenario name as in JS.
 
 from __future__ import annotations
 
+import builtins
 from typing import Any
+
+import httpx2 as httpx
 
 _MISSING = object()
 
@@ -37,7 +40,11 @@ class ScenarioContext:
 
     def get(self, key: str, fail_if_missing: bool = False) -> Any:
         clean, is_global = self._split(key)
-        value = self._global.get(clean, _MISSING) if is_global else self._local.get(clean, self._global.get(clean, _MISSING))
+        value = (
+            self._global.get(clean, _MISSING)
+            if is_global
+            else self._local.get(clean, self._global.get(clean, _MISSING))
+        )
         if value is _MISSING:
             if fail_if_missing:
                 raise KeyError(f"Context variable '{clean}' not found")
@@ -48,14 +55,16 @@ class ScenarioContext:
         clean, is_global = self._split(key)
         return self._global.get(clean) if is_global else self._local.get(clean, self._global.get(clean))
 
-    def str(self, key: str) -> str:
-        return str(self.get(key))
+    def str(self, key: builtins.str) -> builtins.str:
+        return builtins.str(self.get(key))
 
-    def response(self, var_name: str):
+    def response(self, var_name: builtins.str) -> httpx.Response:
         """A saved httpx.Response (fails loudly if missing)."""
-        return self.get(var_name, fail_if_missing=True)
+        res = self.get(var_name, fail_if_missing=True)
+        assert isinstance(res, httpx.Response), f"Context variable '{var_name}' is not a saved response: {res!r}"
+        return res
 
-    def body(self, var_name: str) -> Any:
+    def body(self, var_name: builtins.str) -> Any:
         """Parsed JSON body of a saved response; None for an empty body.
 
         Non-JSON content (e.g. a Cloudflare 521 HTML page) is returned as text, like axios

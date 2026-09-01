@@ -10,9 +10,12 @@ Rate-limit pacing lives in tests/conftest.py (`_rate_limit_pacing`), not here.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pytest_bdd import given, parsers, then, when
 
 from play_api.api import client, paths
+from play_api.context import ScenarioContext
 from play_api.models.requests import (
     AddressReq,
     ContactsReq,
@@ -49,16 +52,17 @@ class auth:
 
 # ─── Request-body builders ─────────────────────────────────────────────────
 
+
 def _minimal_profile() -> ProfileReq:
     return ProfileReq(first_name=gen.first_name(), last_name=gen.last_name())
 
 
-def _random_update_body() -> dict:
+def _random_update_body() -> dict[str, Any]:
     """Valid random body for scenarios that test auth, not payload validation."""
     return CreateUserReq(email=gen.email(), username=gen.username(), profile=_minimal_profile()).to_body()
 
 
-def _random_patch_body() -> dict:
+def _random_patch_body() -> dict[str, Any]:
     return {"username": gen.username()}
 
 
@@ -66,7 +70,7 @@ def _context_profile(ctx) -> ProfileReq:
     return ProfileReq(first_name=ctx.str("firstName"), last_name=ctx.str("lastName"))
 
 
-def _context_update_body(ctx) -> dict:
+def _context_update_body(ctx: ScenarioContext) -> dict[str, Any]:
     """Body assembled from context variables set by earlier Given steps."""
     return CreateUserReq(email=ctx.str("email"), username=ctx.str("username"), profile=_context_profile(ctx)).to_body()
 
@@ -77,6 +81,7 @@ def _opt_model(ctx, key: str, model):
 
 
 # ─── Create user ───────────────────────────────────────────────────────────
+
 
 @given(parsers.parse('Create minimal user and save response as "{var}"'))
 def create_minimal_user(ctx, var):
@@ -128,26 +133,48 @@ def create_user_all_optional(ctx, var):
         username=gen.username(),
         password=gen.password(),
         profile=ProfileReq(
-            first_name=gen.first_name(), last_name=gen.last_name(), middle_name="Michael",
-            gender="other", bio="Short bio here.", date_of_birth="1990-01-15",
-            interests=["coding", "travel"], avatar_url="https://example.com/avatar.jpg",
+            first_name=gen.first_name(),
+            last_name=gen.last_name(),
+            middle_name="Michael",
+            gender="other",
+            bio="Short bio here.",
+            date_of_birth="1990-01-15",
+            interests=["coding", "travel"],
+            avatar_url="https://example.com/avatar.jpg",
         ),
         contacts=ContactsReq(
-            phone=gen.phone_number(), telegram="@tester", whatsapp=gen.phone_number(),
-            linkedin="https://linkedin.com/in/tester", github="https://github.com/tester", website="https://tester.dev",
+            phone=gen.phone_number(),
+            telegram="@tester",
+            whatsapp=gen.phone_number(),
+            linkedin="https://linkedin.com/in/tester",
+            github="https://github.com/tester",
+            website="https://tester.dev",
         ),
         address=AddressReq(
-            country="US", state="California", city="San Francisco", street="Market St",
-            building="100", apartment="5A", zip_code="94105",
+            country="US",
+            state="California",
+            city="San Francisco",
+            street="Market St",
+            building="100",
+            apartment="5A",
+            zip_code="94105",
             coordinates={"latitude": 37.7749, "longitude": -122.4194},
         ),
         employment=EmploymentReq(
-            status="employed", company="Acme Inc", position="Engineer", department="R&D",
-            start_date="2020-03-01", salary={"amount": 120000, "currency": "USD"},
+            status="employed",
+            company="Acme Inc",
+            position="Engineer",
+            department="R&D",
+            start_date="2020-03-01",
+            salary={"amount": 120000, "currency": "USD"},
         ),
         settings=SettingsReq(
-            language="en", timezone="America/Los_Angeles", theme="dark",
-            notifications_enabled=True, two_factor_enabled=False, private_profile=False,
+            language="en",
+            timezone="America/Los_Angeles",
+            theme="dark",
+            notifications_enabled=True,
+            two_factor_enabled=False,
+            private_profile=False,
         ),
     )
     ctx.save(var, client.post(paths.USERS_CREATE, body.to_body()))
@@ -159,6 +186,7 @@ def create_user_raw(ctx, raw, var):
 
 
 # Optional-field inputs consumed by "Create user with full body"
+
 
 @given(parsers.parse('Set employment status "{status}"'))
 def set_employment_status(ctx, status):
@@ -189,6 +217,7 @@ def generate_username_of_length(ctx, n, key):
 
 # ─── Get user ──────────────────────────────────────────────────────────────
 
+
 @when(parsers.parse('Send GET user request for "{id_key}" and save response as "{var}"'))
 def get_user(ctx, id_key, var):
     ctx.save(var, client.get(paths.users_get(ctx.str(id_key))))
@@ -196,13 +225,16 @@ def get_user(ctx, id_key, var):
 
 # ─── List users ────────────────────────────────────────────────────────────
 
+
 @when(parsers.parse('Send GET users list request and save response as "{var}"'))
 def list_users(ctx, var):
     ctx.save(var, client.get(paths.USERS_LIST))
 
 
 # String-typed so boundary rows can pass non-numeric values (abc, -5, xyz)
-@when(parsers.parse('Send GET users list request with page "{page}" per_page "{per_page}" and save response as "{var}"'))
+@when(
+    parsers.parse('Send GET users list request with page "{page}" per_page "{per_page}" and save response as "{var}"')
+)
 def list_users_paged(ctx, page, per_page, var):
     ctx.save(var, client.get(paths.USERS_LIST, params={"page": page, "per_page": per_page}))
 
@@ -219,6 +251,7 @@ def assert_users_list_no_field(ctx, field, var):
 
 # ─── User exists ───────────────────────────────────────────────────────────
 
+
 @when(parsers.parse('Send HEAD exists request for "{id_key}" and save response as "{var}"'))
 def head_exists(ctx, id_key, var):
     ctx.save(var, client.head(paths.users_exists(ctx.str(id_key))))
@@ -230,6 +263,7 @@ def get_exists(ctx, id_key, var):
 
 
 # ─── Update user (PUT) ─────────────────────────────────────────────────────
+
 
 def _update(ctx, id_key, body, headers, var):
     ctx.save(var, client.put(paths.users_update(ctx.str(id_key)), body, headers))
@@ -257,11 +291,16 @@ def update_user_no_auth(ctx, id_key, var):
 
 # ─── Patch user (PATCH) ────────────────────────────────────────────────────
 
+
 def _patch(ctx, id_key, body, headers, var):
     ctx.save(var, client.patch(paths.users_patch(ctx.str(id_key)), body, headers))
 
 
-@when(parsers.parse('Patch user "{id_key}" with field "{field}" value "{value}" token "{token_key}" and save response as "{var}"'))
+@when(
+    parsers.parse(
+        'Patch user "{id_key}" with field "{field}" value "{value}" token "{token_key}" and save response as "{var}"'
+    )
+)
 def patch_user_field(ctx, id_key, field, value, token_key, var):
     _patch(ctx, id_key, {field: ctx.str(value)}, auth.bearer(ctx, token_key), var)
 
@@ -288,6 +327,7 @@ def patch_user_no_auth(ctx, id_key, var):
 
 # ─── Delete user ───────────────────────────────────────────────────────────
 
+
 def _delete(ctx, id_key, headers, var):
     ctx.save(var, client.delete(paths.users_delete(ctx.str(id_key)), headers))
 
@@ -309,6 +349,7 @@ def delete_user_no_auth(ctx, id_key, var):
 
 # ─── Login ─────────────────────────────────────────────────────────────────
 
+
 @when(parsers.parse('Login with "{email_key}" and "{password_key}" and save response as "{var}"'))
 def login(ctx, email_key, password_key, var):
     body = LoginReq(email=ctx.str(email_key), password=ctx.str(password_key))
@@ -321,6 +362,7 @@ def login_raw(ctx, raw, var):
 
 
 # ─── Logout (POST without body) ────────────────────────────────────────────
+
 
 def _logout(ctx, id_key, headers, var):
     ctx.save(var, client.post(paths.users_logout(ctx.str(id_key)), None, headers))
@@ -342,6 +384,7 @@ def logout_no_auth(ctx, id_key, var):
 
 
 # ─── Typed response assertions ─────────────────────────────────────────────
+
 
 @then(parsers.parse('Assert error code is "{code}" in response "{var}"'))
 def assert_error_code_step(ctx, code, var):

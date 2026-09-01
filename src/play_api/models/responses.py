@@ -1,14 +1,21 @@
 """Response contracts — port of src/models/*Response.js, but *typed*: pydantic validates the
-shape, steps call the `assert_*` helpers. Keep only what steps use (no dead getters).
+shape (docs/API_REFERENCE.md is the source), steps call the `assert_*` helpers.
+
+Two uses:
+* explicit step assertions (`assert_error_code`, `assert_user_core_fields`, …) — the JS parity path;
+* `contract_for(method, path)` — `client.request()` validates **every 2xx JSON response** against the
+  documented shape automatically, so a field disappearing from `POST /mail/create` fails the request
+  step even in a scenario that only asserts the status code (Python-only upgrade over the JS port).
 
 `extra="allow"` everywhere: the API may add fields; contracts assert presence of the documented ones.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from play_api.utils.json_path import has_path
 
@@ -17,7 +24,7 @@ class _Contract(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     @classmethod
-    def check(cls, body: Any):
+    def check(cls, body: Any) -> Self:
         """Validate `body` against the contract; raise AssertionError with the pydantic details."""
         try:
             return cls.model_validate(body)
@@ -68,7 +75,74 @@ class MessagesListResponse(_Contract):
     count: int
 
 
+class HealthResponse(_Contract):
+    status: str
+    time: str
+
+
+class BasicAuthResponse(_Contract):
+    """GET /auth/basic 200 (its 401 shape is non-standard and not covered by ErrorEnvelope)."""
+
+    success: bool
+    message: str
+    user: str
+
+
+class LogoutResponse(_Contract):
+    success: bool
+    message: str
+
+
+class MailboxResponse(_Contract):
+    id: str
+    token: str
+    email_address: str
+    domain: str
+    expires_at: str
+    created_at: str
+
+
+class MessageResponse(_Contract):
+    """Single message (GET /mail/:token/messages/:id and POST /mail/:token/send 201)."""
+
+    id: str
+    from_: str = Field(alias="from")
+    subject: str
+    body_preview: str
+    body: str
+    html_body: str | None = None
+    headers: dict[str, Any] | None = None
+    received_at: str
+
+
+# ─── 2xx contract registry (method, path regex, contract) ──────────────────
+# Endpoints answering 2xx with an empty body (DELETE, HEAD/GET exists, OPTIONS) have no entry.
+
+_CONTRACTS_2XX: tuple[tuple[str, re.Pattern[str], type[_Contract]], ...] = (
+    ("GET", re.compile(r"/api/v1/health$"), HealthResponse),
+    ("POST", re.compile(r"/api/v1/login$"), LoginResponse),
+    ("GET", re.compile(r"/api/v1/auth/basic$"), BasicAuthResponse),
+    ("POST", re.compile(r"/api/v1/users/create$"), UserResponse),
+    ("GET", re.compile(r"/api/v1/users/list$"), UsersListResponse),
+    ("GET", re.compile(r"/api/v1/users/get/[^/]+$"), UserResponse),
+    ("PUT", re.compile(r"/api/v1/users/update/[^/]+$"), UserResponse),
+    ("PATCH", re.compile(r"/api/v1/users/patch/[^/]+$"), UserResponse),
+    ("POST", re.compile(r"/api/v1/users/logout/[^/]+$"), LogoutResponse),
+    ("POST", re.compile(r"/api/v1/mail/create$"), MailboxResponse),
+    ("GET", re.compile(r"/api/v1/mail/[^/]+$"), MailboxResponse),
+    ("GET", re.compile(r"/api/v1/mail/[^/]+/messages$"), MessagesListResponse),
+    ("GET", re.compile(r"/api/v1/mail/[^/]+/messages/[^/]+$"), MessageResponse),
+    ("POST", re.compile(r"/api/v1/mail/[^/]+/send$"), MessageResponse),
+)
+
+
+def contract_for(method: str, path: str) -> type[_Contract] | None:
+    """The documented 2xx contract for an endpoint, or None if it has none (empty-body responses)."""
+    return next((c for m, rx, c in _CONTRACTS_2XX if m == method and rx.search(path)), None)
+
+
 # ─── assertion helpers used by steps ───────────────────────────────────────
+
 
 def assert_error_code(body: Any, expected: str) -> None:
     env = ErrorEnvelope.check(body)

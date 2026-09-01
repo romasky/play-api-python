@@ -20,8 +20,8 @@ from play_api.models.responses import assert_has_request_id
 from play_api.utils import generator as gen
 from play_api.utils.json_path import get_path, has_path
 
-
 # ─── Data generation ───────────────────────────────────────────────────────
+
 
 @step(parsers.parse('Save string "{value}" as "{key}"'))
 def save_string(ctx, value, key):
@@ -120,6 +120,7 @@ def get_current_date(ctx, key):
 
 # ─── Extract ───────────────────────────────────────────────────────────────
 
+
 @step(parsers.parse('Extract "{field}" from "{var}" and save as "{key}"'))
 def extract_field(ctx, field, var, key):
     body = ctx.body(var)
@@ -129,6 +130,7 @@ def extract_field(ctx, field, var, key):
 
 
 # ─── Status code ───────────────────────────────────────────────────────────
+
 
 @step(parsers.parse('Get and check status code {code:d} from "{var}"'))
 def check_status_code(ctx, code, var):
@@ -151,6 +153,7 @@ def assert_status_one_of(ctx, codes, var):
 
 # ─── Header assertions (httpx headers are case-insensitive) ────────────────
 
+
 @then(parsers.parse('Assert response header "{header}" equals "{expected}" in "{var}"'))
 def assert_header_equals(ctx, header, expected, var):
     actual = ctx.response(var).headers.get(header)
@@ -170,6 +173,7 @@ def assert_header_present(ctx, header, var):
 
 
 # ─── Typed body-field assertions ───────────────────────────────────────────
+
 
 def _render(value) -> str:
     """JS parity for `String(actual)`: booleans render lowercase, everything else via str()."""
@@ -221,6 +225,7 @@ def assert_response_has_request_id(ctx, var):
 
 # ─── Context value assertions ──────────────────────────────────────────────
 
+
 @then(parsers.parse('Assert "{key}" not null'))
 def assert_ctx_not_null(ctx, key):
     assert ctx.get(key, fail_if_missing=True), f"{key} is null"
@@ -245,6 +250,7 @@ def assert_ctx_matches(ctx, key, regex):
 
 
 # ─── Debug ─────────────────────────────────────────────────────────────────
+
 
 @then(parsers.parse('Print response "{var}"'))
 def print_response(ctx, var):

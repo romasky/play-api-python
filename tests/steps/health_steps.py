@@ -1,6 +1,6 @@
 """GET /health — port of src/steps/healthSteps.js."""
 
-from pytest_bdd import when, parsers
+from pytest_bdd import parsers, when
 
 from play_api.api import client, paths
 

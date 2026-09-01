@@ -1,6 +1,6 @@
 """OPTIONS /users/options — port of src/steps/optionsSteps.js (live API answers 204 via Cloudflare)."""
 
-from pytest_bdd import when, parsers
+from pytest_bdd import parsers, when
 
 from play_api.api import client, paths
 

@@ -23,18 +23,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 
       - run: uv sync --frozen
 
+      - name: Lint (ruff) + type-check (mypy) + offline step coverage
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+          uv run python tools/check_steps.py
+
       # Allure 3 CLI is a pure-JS npm package — Node is only needed for report generation
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Run tests
         run: |
@@ -48,7 +55,7 @@ jobs:
 
       - name: Upload allure-results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-results-${{ github.run_number }}
           path: allure-results
@@ -63,7 +70,7 @@ jobs:
 
       - name: Deploy to GitHub Pages
         if: always() && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages

@@ -22,6 +22,7 @@ import allure
 import httpx2 as httpx  # httpx2 == httpx maintained by Pydantic Services; API identical
 
 from play_api.config import settings
+from play_api.models.responses import contract_for
 
 _client = httpx.Client(base_url=settings.base_url, timeout=settings.request_timeout)
 
@@ -55,12 +56,20 @@ def request(
         response = _client.request(method, path, json=body, params=params, headers=wire_headers)
 
         allure.attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
+        parsed: Any = None
         if response.content:
             try:
-                pretty = json.dumps(response.json(), indent=2, ensure_ascii=False)
-                allure.attach(pretty, "Response Body", allure.attachment_type.JSON)
+                parsed = response.json()
+                allure.attach(
+                    json.dumps(parsed, indent=2, ensure_ascii=False), "Response Body", allure.attachment_type.JSON
+                )
             except ValueError:
                 allure.attach(response.text, "Response Body", allure.attachment_type.TEXT)
+        # Schema check: every documented 2xx JSON shape must hold, whatever the scenario asserts later.
+        contract = contract_for(method, path) if 200 <= response.status_code < 300 and parsed is not None else None
+        if contract is not None:
+            with allure.step(f"Contract: {contract.__name__}"):
+                contract.check(parsed)
         return response
 
 

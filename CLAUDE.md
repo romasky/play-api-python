@@ -25,6 +25,7 @@ Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
 | Config | **pydantic-settings** | 2.x | `.env` + env-var override, typed |
 | Reporting | **allure-pytest-bdd** + Allure 3 CLI (`npx allure@3`, "awesome" UI) | 2.16.0 / 3.x | Python adapter writes allure2-format JSON; the Allure 3 CLI already consumes that format in the JS project |
 | Packaging | **uv** (`pyproject.toml` + `uv.lock`) | 0.12 | venv + lock + run in one tool; CI uses `astral-sh/setup-uv` |
+| Quality | **ruff** + **mypy** (strict, `pydantic.mypy` plugin) | 0.16 / 2.3 | CI gate before tests; config in `pyproject.toml` |
 | Python | **3.12** (`.python-version`) | — | pytest-bdd 8.1 needs ≥3.10 and is dropping 3.9 next |
 
 ## 3. Environment caveats on this machine
@@ -47,7 +48,7 @@ src/play_api/
   api/paths.py                   # all endpoint paths
   api/client.py                  # request() choke point: Allure sub-step + attachments; bearer_header()
   models/requests.py             # pydantic builders: CreateUserReq/ProfileReq/…/LoginReq/CreateMailboxReq/SendMessageReq
-  models/responses.py            # pydantic contracts + assert_* helpers (error code, request_id, login, user core fields, list/no-field, messages/no-full-body)
+  models/responses.py            # pydantic contracts for every 2xx shape + `contract_for()` registry (auto-checked by client) + assert_* helpers
   utils/json_path.py             # get_path / has_path (typed dotted-path checks; never substring matching)
   utils/generator.py             # random data with the API's exact shapes
   utils/gherkin.py               # raw_json(): unescapes \" in `… with raw body "{…}"` step args before json.loads
@@ -89,6 +90,8 @@ All six step modules are fully ported (94 step definitions; `tools/check_steps.p
   (`… with raw body "{…}"` steps are the only place raw JSON is allowed — for deliberately broken payloads).
 - **Every negative scenario asserts BOTH status and `error.code`** (exceptions with no envelope: `GET /auth/basic`, HEAD/GET `/users/exists/:id`).
 - Typed checks only: `get_path/has_path` or pydantic contracts. No `str(body)` / `in json.dumps(...)` substring checks.
+- New 2xx endpoint → add its contract **and** a `_CONTRACTS_2XX` entry in `responses.py`; `client.request()` raises `AssertionError` inside the HTTP step when a 2xx body violates it. Contracts list only documented, always-present fields (`extra="allow"`; optional ones `| None = None`).
+- `uv run ruff check . && uv run ruff format --check . && uv run mypy` must pass — CI runs them before pytest. Gherkin step strings longer than 120 chars get `# noqa: E501` (never wrap the phrase).
 - Context passthrough: unknown keys resolve to the literal. Don't create context keys that collide with
   literals used in assertions (bio → `profileBio`).
 - Rate limits are **paced, never retried** (2 s per User_Management scenario, 13 s per Login scenario).
@@ -106,7 +109,7 @@ All six step modules are fully ported (94 step definitions; `tools/check_steps.p
 - [x] **P5 Allure** (2026-09-01) — `npx allure@3 generate allure-results -o allure-report` → 181/181; Epic→Suite→SubSuite tree = 18 sub-suites with the exact per-feature counts; 298 HTTP sub-steps, 838 attachments. (`summary.json` "total" can look odd when results contain retries — check `data/test-results/*.json` labels instead.)
 - [x] **P6 CI** (2026-09-01) — first push run green (181 passed); GitHub Pages enabled via API (source `gh-pages` / `/`) → https://romasky.github.io/play-api-python/latest/. No `BASE_URL` variable needed (default). Node 20 deprecation annotations on the actions are informational.
 - [x] **P7 Docs** — README done (mirrors the JS README + porting-notes table). Wiki live: https://github.com/romasky/play-api-python/wiki (16 pages). Edit via the sibling checkout `../play-api-python.wiki` (remote `git@github.com-romasky:romasky/play-api-python.wiki.git`, branch `master`), not via this repo.
-- [ ] **P8 Python-only upgrades (optional)** — response contracts for every 2xx shape (already partly in `responses.py`), `Faker` for richer data, `ruff` + `mypy` in CI.
+- [x] **P8 Python-only upgrades** (2026-09-01) — (a) `ruff` (E/W/F/I/UP/B/SIM/RUF, line 120) + `mypy --strict` (untyped step defs allowed) as a CI `Lint` step together with `tools/check_steps.py`; (b) `Faker` in `generator.py` for names / message text / sender local part only — `email`, `username`, `local_part` stay random alnum (uniqueness → 409), names filtered to ASCII letters; (c) contracts for every documented 2xx JSON shape + `contract_for(method, path)` registry; `client.request()` validates each 2xx body inside an Allure sub-step `Contract: <Name>`; (d) actions bumped to checkout@v7 / setup-uv@v10 / setup-node@v7 (Node 22) / upload-artifact@v7 / actions-gh-pages@v4.
 
 ## 8. Live-API facts not in `docs/API_REFERENCE.md` (verified 2026-08-31)
 
@@ -138,6 +141,7 @@ All six step modules are fully ported (94 step definitions; `tools/check_steps.p
 uv sync                                   # install
 uv run pytest --co -q                     # collect only — 181 items; does NOT check step definitions
 uv run python tools/check_steps.py        # offline: every step ↔ exactly one step definition (run this first)
+uv run ruff check . && uv run ruff format --check . && uv run mypy   # the CI Lint gate
 uv run pytest -m Smoke                    # 17 scenarios, ~1 min
 uv run pytest -k empty_bearer               # by scenario name (test ids are snake_case)
 uv run pytest -k "empty_bearer or malformed_authorization"   # by test-name substring — feature-file paths do NOT work with scenarios()

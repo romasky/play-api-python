@@ -22,12 +22,14 @@ Python 3.12, pytest + pytest-bdd, pydantic 2, httpx and Allure Report 3. It is t
 - **181 scenarios across 18 feature files** — covering 19 API endpoints, including Bearer and Basic auth
 - **Allure 3 HTML reports** — Epic → Suite → SubSuite → Story hierarchy, every HTTP call a nested step with request/response attachments, auto-published to GitHub Pages on every CI run
 - **Token-security regression guards** — absent / empty / malformed `Authorization` headers and cross-account (IDOR) attempts; every negative scenario asserts **both** the HTTP status and `error.code`
-- **Typed contracts** — pydantic response models (`ErrorEnvelope`, `UserResponse`, `LoginResponse`, …) plus dotted-path own-property checks (`Assert field "x.y" is absent …`) — never substring matching
+- **Typed contracts** — pydantic response models for every documented 2xx shape (`UserResponse`, `LoginResponse`, `MailboxResponse`, `MessageResponse`, …); `client.request()` validates **each 2xx JSON response** against its contract automatically, on top of the dotted-path own-property checks (`Assert field "x.y" is absent …`) — never substring matching
 - **Typed request builders** — pydantic models with `exclude_none` serialization, so unset optional fields are absent (never `null`)
 - **Temp-mail API coverage** — mailbox and message endpoints exercised through the same Gherkin steps, no external mail service needed
 - **Rate-limit pacing** — an autouse fixture sleeps pre-emptively per suite/sub-suite to respect server-enforced limits (paced, never retried)
 - **Scenario context** — global (`_g`) / local scoping for cross-scenario data dependencies
 - **Offline step check** — `tools/check_steps.py` matches all 1 082 Gherkin steps against the step definitions without touching the API
+- **Static checks in CI** — `ruff` (lint + format) and `mypy --strict` run before the tests
+- **Realistic data** — `Faker` for names and message content; random alphanumerics wherever the API needs uniqueness or an exact shape
 
 ---
 
@@ -43,6 +45,8 @@ Python 3.12, pytest + pytest-bdd, pydantic 2, httpx and Allure Report 3. It is t
 | `pydantic` | 2.x | Request builders and typed response contracts |
 | `pydantic-settings` | 2.x | `.env` + environment configuration |
 | `allure-pytest-bdd` | 2.16 | Allure results adapter |
+| `faker` | 40.x | Human-looking test data (names, message text) |
+| `ruff` / `mypy` | 0.16 / 2.3 | Lint + format / strict type-checking (CI gate) |
 | Allure 3 CLI (`npx allure@3`) | 3.x | Report generation (Awesome UI) — the only Node dependency |
 
 ---
@@ -54,7 +58,7 @@ play-api-python/
 ├── pyproject.toml                 # deps (uv), pytest config: markers, default -m filter, --alluredir
 ├── uv.lock                        # locked dependency set (CI uses --frozen)
 ├── .env.example                   # BASE_URL / REQUEST_TIMEOUT (copy to .env, git-ignored)
-├── .github/workflows/test.yml     # CI — uv + pytest → Allure 3 → GitHub Pages
+├── .github/workflows/test.yml     # CI — uv + ruff/mypy/check_steps + pytest → Allure 3 → GitHub Pages
 ├── allure-results/
 │   └── categories.json            # Allure failure categories
 ├── docs/API_REFERENCE.md          # API contract — ground truth for expectations
@@ -67,9 +71,9 @@ play-api-python/
 │   │   └── client.py              # httpx wrapper — one Allure step per request, headers passed verbatim
 │   ├── models/
 │   │   ├── requests.py            # CreateUserReq / ProfileReq / … / LoginReq / CreateMailboxReq / SendMessageReq
-│   │   └── responses.py           # pydantic contracts + assert_* helpers used by steps
+│   │   └── responses.py           # pydantic contracts for every 2xx shape + registry used by client + assert_* helpers
 │   └── utils/
-│       ├── generator.py           # Random data generators (email, username, …)
+│       ├── generator.py           # Test data — Faker for names/text, random alnum for unique/shaped fields
 │       ├── json_path.py           # get_path / has_path — typed dotted-path body checks
 │       └── gherkin.py             # raw_json — unescapes `… with raw body "{…}"` step arguments
 ├── tests/
@@ -113,8 +117,9 @@ brew install uv            # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python install 3.12
 uv sync
 
-# Verify every Gherkin step has exactly one step definition (no network needed)
-uv run python tools/check_steps.py
+# Static checks (same as the CI Lint step; no network needed)
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+uv run python tools/check_steps.py      # every Gherkin step ↔ exactly one step definition
 
 # Run all tests (default filter: @Run and not @Ignore/@Bug/@NotImplemented)
 uv run pytest
@@ -229,6 +234,7 @@ Scenario Outlines are counted per example row.
 | Any keyword matches any step | pytest-bdd matches by keyword — steps used after Given **and** When/Then use `@step` |
 | `{string}` unescapes `\"` | `utils.gherkin.raw_json()` unescapes before `json.loads` |
 | `createUserReq({...})` strips `undefined` | `CreateUserReq(...).to_body()` → `model_dump(exclude_none=True)` |
+| `*Response.js` hand-written presence checks | pydantic contracts, also auto-applied to every 2xx response in `client.request()` |
 | `Before({tags})` sleeps | `_rate_limit_pacing` autouse fixture reads `allure_label` markers |
 | `@allure.label.*` handled by allure-cucumberjs | `pytest_bdd_apply_tag` hook → `pytest.mark.allure_label` |
 

@@ -2,7 +2,7 @@
 
 import base64
 
-from pytest_bdd import when, parsers
+from pytest_bdd import parsers, when
 
 from play_api.api import client, paths
 
