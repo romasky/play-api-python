@@ -1,0 +1,71 @@
+name: API Tests — play-qa.com
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      markers:
+        description: 'pytest -m expression'
+        required: false
+        default: 'Run and not Ignore and not Bug and not NotImplemented'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      # Allure 3 CLI is a pure-JS npm package — Node is only needed for report generation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        run: |
+          MARKERS="${{ github.event.inputs.markers || 'Run and not Ignore and not Bug and not NotImplemented' }}"
+          BASE_URL="${{ vars.BASE_URL || 'https://www.play-qa.com' }}"
+          BASE_URL=$BASE_URL uv run pytest -m "$MARKERS"
+
+      - name: Generate Allure report
+        if: always()
+        run: npx --yes allure@3 generate allure-results -o allure-report
+
+      - name: Upload allure-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ github.run_number }}
+          path: allure-results
+          retention-days: 30
+
+      - name: Prepare deploy directory
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p deploy-root
+          cp -r allure-report deploy-root/${{ github.run_number }}
+          cp -r allure-report deploy-root/latest
+
+      - name: Deploy to GitHub Pages
+        if: always() && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: deploy-root
+          keep_files: true

@@ -1,0 +1,143 @@
+# play-api-python — agent entry point
+
+**Read this file first.** It is the single source of context for continuing this project.
+Everything an agent needs — goal, stack decisions (and why), conventions, the porting plan with
+checkboxes, live-API quirks and known pitfalls — is here. Update the checkboxes as you go.
+
+## 1. Mission
+
+Python port of **play-api-js** (`/Users/macbook/Documents/Storage/rs/projects/play-api-js`,
+https://github.com/romasky/play-api-js) — a BDD API test framework for https://www.play-qa.com.
+The JS project (itself a port of `play-api-java`) is the **reference implementation**: 181 scenarios
+in 18 feature files, all green against the live API as of 2026-08-31.
+
+**Definition of done for the port:** `uv run pytest` runs the *same 18 feature files* (copied verbatim
+into `features/play_qa_api/`) with the same expected statuses and `error.code`s, and produces an
+Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
+
+## 2. Stack (decided 2026-09-01 after research — do not re-litigate without a reason)
+
+| Layer | Choice | Version (PyPI, Sep 2026) | Why |
+|---|---|---|---|
+| Runner + BDD | **pytest + pytest-bdd** | pytest ≥8.3 / pytest-bdd 8.1.0 | `gherkin-official` parser (outlines, tags, datatables), pytest fixtures/markers/IDE; behave 1.3.3 was the alternative (closer to Cucumber, but its own runner and no fixtures) |
+| HTTP | **httpx2** (`import httpx2 as httpx`) | 2.12.0 | Same API as httpx, now maintained by Pydantic Services (original `httpx` stalled at 0.28.1, Dec 2024); never raises on 4xx/5xx; single `timeout` |
+| Models | **pydantic 2** | 2.13 | `model_dump(by_alias=True, exclude_none=True)` = JS `JSON.parse(JSON.stringify())`; typed response contracts (`responses.py`) — an upgrade over JS |
+| Config | **pydantic-settings** | 2.x | `.env` + env-var override, typed |
+| Reporting | **allure-pytest-bdd** + Allure 3 CLI (`npx allure@3`, "awesome" UI) | 2.16.0 / 3.x | Python adapter writes allure2-format JSON; the Allure 3 CLI already consumes that format in the JS project |
+| Packaging | **uv** (`pyproject.toml` + `uv.lock`) | 0.12 | venv + lock + run in one tool; CI uses `astral-sh/setup-uv` |
+| Python | **3.12** (`.python-version`) | — | pytest-bdd 8.1 needs ≥3.10 and is dropping 3.9 next |
+
+## 3. Environment caveats on this machine
+
+- `uv` is **not installed** and system Python is 3.9 → bootstrap first:
+  `brew install uv && uv python install 3.12 && uv sync` (creates `.venv` + `uv.lock`; commit the lock).
+- Nothing in this repo has been executed yet — the skeleton was written blind (2026-09-01). First
+  task of the next session: `uv sync`, then `uv run pytest --co -q` and fix import/parse errors.
+- `.env` is git-ignored; copy `.env.example`. Defaults in `src/play_api/config.py` work without it.
+- Git remote uses the SSH alias `github.com-romasky` (plain `github.com` has no key for this account).
+
+## 4. Layout
+
+```
+features/play_qa_api/*.feature   # copied 1:1 from play-api-js — the SPEC. Do not rephrase steps.
+src/play_api/
+  config.py                      # Settings (BASE_URL, REQUEST_TIMEOUT seconds)
+  context.py                     # ScenarioContext: save/get/opt/str/response/body, _g/_l scoping
+  api/paths.py                   # all endpoint paths
+  api/client.py                  # request() choke point: Allure sub-step + attachments; bearer_header()
+  models/requests.py             # pydantic builders: CreateUserReq/ProfileReq/…/LoginReq/CreateMailboxReq/SendMessageReq
+  models/responses.py            # pydantic contracts + assert_* helpers (error code, request_id, login, user core fields, list/no-field, messages/no-full-body)
+  utils/json_path.py             # get_path / has_path (typed dotted-path checks; never substring matching)
+  utils/generator.py             # random data with the API's exact shapes
+tests/
+  conftest.py                    # pytest_plugins (step modules), ctx/global_ctx fixtures, pytest_bdd_apply_tag (@allure.label.* → allure_label), rate-limit pacing
+  test_features.py               # scenarios("play_qa_api") — binds every feature file
+  steps/{common,accounts,mail,health,basic_auth,options}_steps.py   # ← the porting work happens here
+docs/API_REFERENCE.md            # API contract (error codes, validation rules) — ground truth for expectations
+allure-results/categories.json   # committed; never --clean-alluredir
+.github/workflows/test.yml       # uv + pytest → npx allure@3 generate → GitHub Pages (same layout as JS)
+```
+
+## 5. JS → Python mapping (how to port a step)
+
+| play-api-js | play-api-python |
+|---|---|
+| `Given('Create minimal user and save response as {string}', async (varName) => …)` | `@given(parsers.parse('Create minimal user and save response as "{var}"'))` `def _(ctx, var): …` |
+| `{string}` / `{int}` | `"{name}"` / `{name:d}` inside `parsers.parse` |
+| `ctx.save / get / opt / str` | same names on the `ctx` fixture (`ScenarioContext`) |
+| `ctx.get(varName, true).data` | `ctx.body(var)`; the raw `httpx.Response` via `ctx.response(var)` |
+| `client.post(path, body, headers)` | `client.post(path, body, headers)` — body is a `dict` (`Model.to_body()`) |
+| `auth.bearer / raw / none` | same helper in `accounts_steps.py` (`auth.bearer(ctx, key)` needs `ctx`) |
+| `createUserReq({...})` strips undefined | `CreateUserReq(...).to_body()` (`exclude_none`) |
+| `errorResponse.assertCode(res, code)` | `responses.assert_error_code(ctx.body(var), code)` |
+| `getPath / hasPath` | `get_path / has_path` (arrays: `"messages.0.subject"`) |
+| `Before({tags: …})` sleeps | `_rate_limit_pacing` autouse fixture in `conftest.py` (reads allure_label markers) |
+| `@allure.label.epic:X` tags | translated by `pytest_bdd_apply_tag` → `pytest.mark.allure_label("X", label_type="epic")` |
+| `Then … (Cucumber And/Then interchangeable)` | pytest-bdd matches by text only; decorate with the natural keyword (`@then`) — `And` inherits the previous keyword |
+
+Steps already ported as examples of the pattern: `common_steps.py` (Save string, Generate email,
+Extract, status code, field equals / not null / absent), `accounts_steps.py` (Create minimal user,
+Patch × 3 auth variants, Assert error code), `health_steps.py`, `basic_auth_steps.py`,
+`options_steps.py` (complete). `mail_steps.py` is an empty shell.
+
+## 6. Conventions (inherited from the JS/Java projects — MUST follow)
+
+- **Feature files are the spec.** Never change step phrasing to fit Python; change the step definition.
+  Scenario Outlines are counted per row (181 total). Tags: `@Run` required + `@Smoke/@Positive/@Negative/@Flow`
+  + `@allure.label.{epic,suite,subSuite,story,severity}`.
+- HTTP only through `play_api.api.client`; paths only from `play_api.api.paths`; bodies via `models/requests.py`
+  (`… with raw body "{…}"` steps are the only place raw JSON is allowed — for deliberately broken payloads).
+- **Every negative scenario asserts BOTH status and `error.code`** (exceptions with no envelope: `GET /auth/basic`, HEAD/GET `/users/exists/:id`).
+- Typed checks only: `get_path/has_path` or pydantic contracts. No `str(body)` / `in json.dumps(...)` substring checks.
+- Context passthrough: unknown keys resolve to the literal. Don't create context keys that collide with
+  literals used in assertions (bio → `profileBio`).
+- Rate limits are **paced, never retried** (2 s per User_Management scenario, 13 s per Login scenario).
+  `TokenSecurityTests` carries `suite:User_Management` on purpose to inherit the 2 s pacing.
+- Single-threaded (`ScenarioContext` global store) — do not add pytest-xdist.
+- Keep step modules thin; logic belongs in `src/play_api`. No dead exports (the JS project was cleaned of these — keep it that way).
+
+## 7. Porting plan (tick as you go)
+
+- [ ] **P0 Bootstrap** — `brew install uv`, `uv python install 3.12`, `uv sync`, `uv run pytest --co -q` collects 181 items with **no** `StepDefinitionNotFoundError` for the 6 completed modules (expect many for the unported ones).
+- [ ] **P1 common_steps.py** — port every generic step from `src/steps/commonSteps.js` (generators, header asserts, `is one of`, `not a server error`, `contains`, `is present`, `body is empty`, `has request_id`, context asserts, `Print response`).
+- [ ] **P2 accounts_steps.py** — port `src/steps/accountsSteps.js` completely (create × 5, Set employment/theme/interests/bio, username of length, GET user, list + string page/per_page, exists HEAD/GET, update/patch/delete/logout × {token, raw auth header, no auth token}, login, typed assertions).
+- [ ] **P3 mail_steps.py** — port `src/steps/mailSteps.js` + `assert_messages_have_no_full_body`.
+- [ ] **P4 Green run** — `uv run pytest -m Smoke` (17) then full run (≈10 min); compare with JS: 181 passed. Check `/api/v1/health` first — the origin behind Cloudflare sometimes returns 521 for minutes.
+- [ ] **P5 Allure** — `npx allure@3 generate allure-results -o allure-report && npx allure@3 open allure-report`; verify Epic/Suite/SubSuite/Story tree and that each HTTP call is a nested step with Request/Response attachments.
+- [ ] **P6 CI** — push, confirm the workflow (uv + pytest + Allure 3 → gh-pages `/latest/`) is green; add `BASE_URL` repo variable if needed.
+- [ ] **P7 Docs** — README (stack, structure, coverage table, scenario counts — mirror the JS README), then a wiki like https://github.com/romasky/play-api-js/wiki.
+- [ ] **P8 Python-only upgrades (optional)** — response contracts for every 2xx shape (already partly in `responses.py`), `Faker` for richer data, `ruff` + `mypy` in CI.
+
+## 8. Live-API facts not in `docs/API_REFERENCE.md` (verified 2026-08-31)
+
+- `GET /users/list` with non-positive / non-numeric `page` or `per_page` → `400 INVALID_PAGINATION`; `per_page > 100` → 200 (clamped). Feature asserts only "not 5xx, one of 200/400".
+- `OPTIONS /users/options` → **204, empty body** (Cloudflare), not the documented 200 + JSON.
+- Auth middleware order confirmed: no header → `MISSING_TOKEN`; `Bearer ` / `Bearer` / `Basic …` / no prefix → `INVALID_TOKEN_FORMAT`; any other `Bearer x` → `INVALID_TOKEN`.
+- `GET /auth/basic` works live (admin/admin); 401 body `{error:"Unauthorized", message}` + `WWW-Authenticate`.
+- Validation error for bio > 500: `error.details == "bio must be at most 500 characters long"` (no `validation[]`).
+- Origin outages show as Cloudflare 521 `origin_down` — not a test failure.
+
+## 9. Pitfalls specific to the Python stack
+
+- `allure-pytest-bdd` does **not** parse `@allure.label.*` Gherkin tags (checked in its source: only `allure_label` markers) — the `pytest_bdd_apply_tag` hook in `conftest.py` does it. `allure-behave` would do it natively; irrelevant here.
+- allure-python has no per-step *parameters* (JS used `ctx.parameter`) — `client.request()` attaches small JSON/TEXT attachments instead. `allure.attach` is sync, so the JS "attachment after step closed" race does not exist.
+- `httpx` strips nothing from header values, but the server trims OWS per RFC 7230, so `"Bearer "` ≡ `"Bearer"` → `INVALID_TOKEN_FORMAT` either way (same as JS, where axios trims).
+- `Get and check status code {code:d} from "{var}"` is used after `Then` **and** `When` in the features — it is registered with both decorators.
+- `pytest -m` marker names come from tags; tags with dots/colons never reach `pytest.mark` because the hook converts them (otherwise pytest warns about unknown marks).
+- Do not use `--clean-alluredir` — it would delete the committed `allure-results/categories.json`.
+- `pytest-bdd` 8 requires the file to start with `Feature:` and tags without spaces — the copied features already comply.
+
+## 10. Useful commands
+
+```bash
+uv sync                                   # install
+uv run pytest --co -q                     # collect only — catches undefined steps early
+uv run pytest -m Smoke                    # 17 scenarios, ~1 min
+uv run pytest -k "empty Bearer"           # by scenario name
+uv run pytest features/play_qa_api/TokenSecurityTests.feature   # one feature (pytest-bdd path selection)
+BASE_URL=https://staging.play-qa.com uv run pytest
+npx --yes allure@3 generate allure-results -o allure-report && npx --yes allure@3 open allure-report
+```
+
+Reference material: the JS repo above (steps + wiki), the Java repo `/Users/macbook/Documents/Storage/rs/projects/play-api-java`
+(same features with typed-DTO step phrasing — do **not** copy its step names), and `docs/API_REFERENCE.md`.

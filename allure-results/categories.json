@@ -1,0 +1,20 @@
+[
+  {
+    "name": "API Defects",
+    "description": "API returned an unexpected response — wrong status code, error code, or missing field",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*AssertionError.*|.*expected.*but was.*|.*Expected.*|.*should.*|.*mismatch.*"
+  },
+  {
+    "name": "Network & Connectivity Issues",
+    "description": "Test could not reach the API — connection refused, timeout, or rate limit",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*ECONNREFUSED.*|.*timeout.*|.*ETIMEDOUT.*|.*429.*|.*RATE_LIMIT_EXCEEDED.*"
+  },
+  {
+    "name": "Test Infrastructure Errors",
+    "description": "Test framework or environment failure — not caused by the API under test",
+    "matchedStatuses": ["broken"],
+    "messageRegex": ".*"
+  }
+]
