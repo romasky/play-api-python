@@ -234,6 +234,21 @@ Scenario Outlines are counted per example row.
 
 ---
 
+## 📚 Documentation
+
+Full documentation lives in the [project wiki](https://github.com/romasky/play-api-python/wiki):
+[Getting Started](https://github.com/romasky/play-api-python/wiki/Getting-Started) ·
+[Architecture](https://github.com/romasky/play-api-python/wiki/Architecture) ·
+[Step Definitions Reference](https://github.com/romasky/play-api-python/wiki/Step-Definitions-Reference) ·
+[Models Reference](https://github.com/romasky/play-api-python/wiki/Models-Reference) ·
+[Authorization Header Testing](https://github.com/romasky/play-api-python/wiki/Authorization-Header-Testing) ·
+[Feature Files & Coverage](https://github.com/romasky/play-api-python/wiki/Feature-Files-and-Coverage) ·
+[Allure Reporting](https://github.com/romasky/play-api-python/wiki/Allure-Reporting) ·
+[CI/CD](https://github.com/romasky/play-api-python/wiki/CI-CD) ·
+[Comparison: Python vs JS vs Java](https://github.com/romasky/play-api-python/wiki/Comparison-Python-vs-JS)
+
+---
+
 ## 🔗 Related
 
 - [play-api-js](https://github.com/romasky/play-api-js) — JavaScript version (reference implementation) · [wiki](https://github.com/romasky/play-api-js/wiki)
