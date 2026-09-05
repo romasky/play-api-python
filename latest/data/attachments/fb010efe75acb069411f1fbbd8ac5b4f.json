@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_PAGINATION",
+    "message": "Invalid pagination parameter",
+    "details": "'page' must be a positive integer"
+  },
+  "timestamp": "2026-09-05T11:45:23.195223955Z",
+  "request_id": "6106a867-df16-40be-a154-b17a969239ed"
+}
