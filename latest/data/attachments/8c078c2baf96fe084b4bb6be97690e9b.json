@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_TOKEN_FORMAT",
+    "message": "Invalid authorization header format",
+    "details": "Expected format: Bearer <token>"
+  },
+  "timestamp": "2026-10-17T12:07:47.099352311Z",
+  "request_id": "7f306c36-a1f3-426e-a47d-a34c0c0ddeed"
+}
