@@ -1,0 +1,70 @@
+{
+  "seed": "20",
+  "count": 10,
+  "fail_rate": 0.5,
+  "fail_status": 500,
+  "steps": [
+    {
+      "index": 0,
+      "roll": 0.21146163723468625,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 1,
+      "roll": 0.026520406296100862,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 2,
+      "roll": 0.7814617738666457,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 3,
+      "roll": 0.9095436334855602,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 4,
+      "roll": 0.3667225159537948,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 5,
+      "roll": 0.502021189821688,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 6,
+      "roll": 0.06690524891867944,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 7,
+      "roll": 0.7353585928060621,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 8,
+      "roll": 0.5639108742658403,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 9,
+      "roll": 0.7323499721314938,
+      "status": 200,
+      "failed": false
+    }
+  ],
+  "first_success_index": 2,
+  "fails_total": 4
+}

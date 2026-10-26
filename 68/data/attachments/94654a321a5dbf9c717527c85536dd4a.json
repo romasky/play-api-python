@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "PAYLOAD_TOO_LARGE",
+    "message": "Request body too large",
+    "details": "A captured body must be at most 64 KiB"
+  },
+  "timestamp": "2026-10-26T08:44:24.602554604Z",
+  "request_id": "fbd2dade-be8c-406e-a0e0-77c534115485"
+}
