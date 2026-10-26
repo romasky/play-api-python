@@ -151,6 +151,12 @@ def check_status_code(ctx, code, var):
     assert res.status_code == code, f"Expected status {code} but got {res.status_code}. Body: {res.text}"
 
 
+@then(parsers.parse('Assert response "{var}" took at least {seconds:d} seconds'))
+def assert_response_slow(ctx, var, seconds):
+    elapsed = ctx.response(var).elapsed.total_seconds()
+    assert elapsed >= seconds, f"Response took {elapsed:.2f} s, expected at least {seconds} s"
+
+
 @then(parsers.parse('Assert response is not a server error in "{var}"'))
 def assert_not_server_error(ctx, var):
     res = ctx.response(var)

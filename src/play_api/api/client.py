@@ -9,9 +9,10 @@ Design (keep it):
   whitespace is trimmed, because h11 (httpx's HTTP/1.1 layer) refuses to send a value such
   as `"Bearer "` (RFC 7230 field-value grammar) and raises LocalProtocolError. axios trims
   the same way, so this is exactly what the JS port put on the wire (→ INVALID_TOKEN_FORMAT).
-* Bodies: `json=` (the default, any JSON value), `content=` (raw text/bytes — send your own
-  Content-Type) or `files=`/`data=` (multipart). Large or binary payloads are summarised in the
-  report instead of attached verbatim.
+* Bodies: `json=` (the default, any JSON value; `RawJson` = verbatim malformed JSON), `content=`
+  (raw text/bytes — send your own Content-Type) or `files=` (multipart parts, form fields included).
+  Large or binary payloads are summarised in the report instead of attached verbatim.
+* `headers` may be a list of pairs when a header repeats.
 * Every 2xx JSON body is validated against its registered contract (`contract_for`).
 """
 
@@ -30,15 +31,26 @@ from play_api.config import settings
 from play_api.models.responses import contract_for
 
 Headers = dict[str, str]
+# a list of pairs when a header repeats (`X-Custom: one` + `X-Custom: two`)
+HeaderPairs = list[tuple[str, str]]
 _Scalar = str | int | float | bool | None
 # Mapping for plain params; a list of pairs when a key repeats (`filter=a:1&filter=b:2`).
 Params = Mapping[str, _Scalar] | list[tuple[str, _Scalar]]
-# multipart: {"file": (filename, bytes, content_type)}
-Files = Mapping[str, tuple[str, bytes, str]]
+# multipart parts: [("file", (filename, bytes, content_type)), ("description", (None, b"text", None))]
+Files = list[tuple[str, tuple[str | None, bytes, str | None]]]
 
 _ATTACH_LIMIT = 64 * 1024
 
 _client = httpx.Client(base_url=settings.base_url, timeout=settings.request_timeout)
+
+
+class RawJson(str):
+    """A `json=` value to send VERBATIM as `application/json` — for deliberately malformed payloads
+    (truncated JSON) that cannot be represented as a Python value."""
+
+
+def _pairs(headers: Headers | HeaderPairs | None) -> HeaderPairs:
+    return list(headers.items()) if isinstance(headers, dict) else list(headers or [])
 
 
 def _attach_text(text: str, name: str, kind: Any) -> None:
@@ -48,7 +60,11 @@ def _attach_text(text: str, name: str, kind: Any) -> None:
 
 
 def _attach_request(
-    params: Params | None, headers: Headers | None, json: Any, content: str | bytes | None, files: Files | None
+    params: Params | None,
+    headers: Headers | HeaderPairs | None,
+    json: Any,
+    content: str | bytes | None,
+    files: Files | None,
 ) -> None:
     if params:
         pairs = list(params.items()) if isinstance(params, Mapping) else list(params)
@@ -62,7 +78,7 @@ def _attach_request(
     elif isinstance(content, bytes):
         allure.attach(f"<{len(content)} bytes>", "Request Body", allure.attachment_type.TEXT)
     if files:
-        summary = {field: {"filename": f[0], "bytes": len(f[1]), "content_type": f[2]} for field, f in files.items()}
+        summary = [{"field": name, "filename": f[0], "bytes": len(f[1]), "content_type": f[2]} for name, f in files]
         allure.attach(jsonlib.dumps(summary, indent=2), "Multipart Files", allure.attachment_type.JSON)
 
 
@@ -103,18 +119,20 @@ def request(
     json: Any = None,
     content: str | bytes | None = None,
     files: Files | None = None,
-    data: Mapping[str, str] | None = None,
     params: Params | None = None,
-    headers: Headers | None = None,
+    headers: Headers | HeaderPairs | None = None,
     follow_redirects: bool = False,
     timeout: float | None = None,
 ) -> httpx.Response:
     # allure-python has no per-step parameters (unlike allure-js-commons ctx.parameter),
     # so every per-call datum goes in as a small attachment inside the sub-step.
+    if isinstance(json, RawJson):
+        json, content = None, str(json)
+        headers = [("Content-Type", "application/json"), *_pairs(headers)]
     with allure.step(f"{method} {path}"):
         _attach_request(params, headers, json, content, files)
         # Attachment above shows the header exactly as the step wrote it; the wire gets the trimmed value.
-        wire_headers = {k: v.strip() for k, v in headers.items()} if headers else headers
+        wire_headers = [(k, v.strip()) for k, v in _pairs(headers)]
         pacing.throttle(method, path)
         response = _client.request(
             method,
@@ -122,7 +140,6 @@ def request(
             json=json,
             content=content,
             files=files,
-            data=data,
             params=params,
             headers=wire_headers,
             follow_redirects=follow_redirects,

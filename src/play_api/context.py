@@ -77,7 +77,9 @@ class ScenarioContext:
         return self._global.get(clean) if is_global else self._local.get(clean, self._global.get(clean))
 
     def str(self, key: builtins.str) -> builtins.str:
-        return builtins.str(self.get(key))
+        """A context value as text; a literal (unknown key) gets its `${key}` placeholders interpolated."""
+        value = self.get(key)
+        return self.render(key) if value is key and "${" in key else builtins.str(value)
 
     def render(self, template: builtins.str) -> builtins.str:
         """Interpolate `${key}` placeholders (query strings, raw bodies); an unknown key fails loudly."""

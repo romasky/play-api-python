@@ -20,6 +20,7 @@ pytest_plugins = [
     "tests.steps.basic_auth_steps",
     "tests.steps.options_steps",
     "tests.steps.admin_steps",
+    "tests.steps.auth_steps",
 ]
 
 

@@ -107,6 +107,17 @@ class LoginReq(_Body):
     password: str
 
 
+class JwtLoginReq(_Body):
+    email: str
+    password: str
+    access_ttl_seconds: int | None = None  # 1..900
+
+
+class StoreLoginReq(_Body):
+    username: str
+    password: str
+
+
 class CreateMailboxReq(_Body):
     domain: str | None = None
     local_part: str | None = None

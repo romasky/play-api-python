@@ -1,4 +1,4 @@
-"""Opaque-token login (POST /login) and HTTP Basic (GET /auth/basic)."""
+"""Opaque-token login (POST /login), HTTP Basic (GET /auth/basic) and the Store persona login."""
 
 from __future__ import annotations
 
@@ -15,3 +15,7 @@ def login(body: JsonBody) -> httpx.Response:
 
 def basic_auth(headers: Headers | None = None) -> httpx.Response:
     return client.get(paths.AUTH_BASIC, headers=headers)
+
+
+def store_login(body: JsonBody) -> httpx.Response:
+    return client.post(paths.STORE_LOGIN, to_json(body))

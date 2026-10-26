@@ -14,14 +14,17 @@ Endpoints answering 2xx with an empty body (DELETE, HEAD, OPTIONS, 202 captures)
 
 from __future__ import annotations
 
-from play_api.models.responses import admin, mail, system, users
+from play_api.models.responses import admin, auth, files, mail, system, users, webhooks
 from play_api.models.responses.base import Contract, Entry
 
 _CONTRACTS_2XX: tuple[Entry, ...] = (
     *system.CONTRACTS_2XX,
     *users.CONTRACTS_2XX,
+    *auth.CONTRACTS_2XX,
     *admin.CONTRACTS_2XX,
     *mail.CONTRACTS_2XX,
+    *files.CONTRACTS_2XX,
+    *webhooks.CONTRACTS_2XX,
 )
 
 

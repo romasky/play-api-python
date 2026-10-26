@@ -7,6 +7,8 @@ import re
 from typing import Any
 from urllib.parse import parse_qsl
 
+from play_api.api.client import RawJson
+
 _ESCAPED_QUOTE = re.compile(r'\\+"')
 
 
@@ -17,8 +19,20 @@ def raw_json(text: str) -> Any:
     text as written (`{\\"email\\":\\"x\\"}`), so undo that escaping before `json.loads`. Inside an
     Examples table cell the same `\\"` arrives with a DOUBLED backslash, so any run of backslashes in
     front of a quote collapses (the payloads never need a literal `\\"` inside a JSON string).
+
+    Text that is not valid JSON (a truncated body on purpose) comes back as `RawJson`, which the
+    client sends byte-for-byte instead of re-serialising.
     """
-    return json.loads(_ESCAPED_QUOTE.sub('"', text))
+    text = unescape_quotes(text)
+    try:
+        return json.loads(text)
+    except ValueError:
+        return RawJson(text)
+
+
+def unescape_quotes(text: str) -> str:
+    """`{\\"a\\":1}` (step text) or `{\\\\"a\\\\":1}` (Examples cell) → `{"a":1}` — see raw_json."""
+    return _ESCAPED_QUOTE.sub('"', text)
 
 
 def query_pairs(query: str) -> list[tuple[str, str | int | float | bool | None]]:
