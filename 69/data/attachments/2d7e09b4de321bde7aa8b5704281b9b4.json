@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input",
+    "details": "tz must be a valid IANA zone name (e.g. Europe/Moscow)"
+  },
+  "timestamp": "2026-10-26T09:08:48.067015237Z",
+  "request_id": "61a20fe8-3496-4fc9-a5f2-0600db8a949e"
+}

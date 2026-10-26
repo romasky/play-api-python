@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input",
+    "details": "items[0]: price must be a decimal number with at most 2 fraction digits (e.g. 10.00)"
+  },
+  "timestamp": "2026-10-26T09:08:45.662734338Z",
+  "request_id": "7fc4ad38-8daa-4099-9743-e2c04221a4ed"
+}

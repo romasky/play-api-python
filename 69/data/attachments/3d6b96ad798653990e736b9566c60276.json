@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "bug_id": "cart-total-wrong",
+  "owner": "anonymous",
+  "saved": false,
+  "created_at": "2026-10-26T09:07:48.690319482Z",
+  "score": {
+    "total": 100,
+    "max": 100,
+    "breakdown": {
+      "has_steps": 25,
+      "steps_reproducible": 20,
+      "expected_actual": 25,
+      "severity_reasonable": 15,
+      "title_quality": 15
+    },
+    "feedback": [
+      {
+        "criterion": "has_steps",
+        "ok": true,
+        "key": "bugreport.feedback.has_steps.ok"
+      },
+      {
+        "criterion": "steps_reproducible",
+        "ok": true,
+        "key": "bugreport.feedback.steps_reproducible.ok"
+      },
+      {
+        "criterion": "expected_actual",
+        "ok": true,
+        "key": "bugreport.feedback.expected_actual.ok"
+      },
+      {
+        "criterion": "severity_reasonable",
+        "ok": true,
+        "key": "bugreport.feedback.severity_reasonable.ok"
+      },
+      {
+        "criterion": "title_quality",
+        "ok": true,
+        "key": "bugreport.feedback.title_quality.ok"
+      }
+    ]
+  }
+}

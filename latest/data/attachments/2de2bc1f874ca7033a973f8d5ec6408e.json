@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "total": 3,
+  "bugs": [
+    {
+      "bug_id": "pagination-off-by-one",
+      "method": "GET",
+      "path": "/buggy/items",
+      "title": "bug.pagination-off-by-one.title",
+      "description": "bug.pagination-off-by-one.desc",
+      "expected": "bug.pagination-off-by-one.expected"
+    },
+    {
+      "bug_id": "cart-total-wrong",
+      "method": "POST",
+      "path": "/buggy/cart/total",
+      "title": "bug.cart-total-wrong.title",
+      "description": "bug.cart-total-wrong.desc",
+      "expected": "bug.cart-total-wrong.expected"
+    },
+    {
+      "bug_id": "timezone-shift",
+      "method": "GET",
+      "path": "/buggy/schedule",
+      "title": "bug.timezone-shift.title",
+      "description": "bug.timezone-shift.desc",
+      "expected": "bug.timezone-shift.expected"
+    }
+  ]
+}
