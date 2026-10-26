@@ -15,6 +15,10 @@ intentionally buggy API, chaos engineering, guided challenges, Server-Sent Event
 
 🔗 **[View Latest Report](https://romasky.github.io/play-api-python/latest/)**
 
+Published to GitHub Pages by every CI run on `main` (`/latest/` plus one folder per run number). The report merges
+the six matrix jobs into one Epic → Suite → SubSuite → Story tree (10 epics, 799 scenarios); every HTTP call is a
+nested step with request / response attachments and its `Contract:` check.
+
 ---
 
 ## ✨ Key Highlights
@@ -37,7 +41,8 @@ intentionally buggy API, chaos engineering, guided challenges, Server-Sent Event
 - **Self-cleaning** — uploads, webhook inboxes and WebSocket sessions are torn down after each scenario, pass or fail
 - **Offline step check** — `tools/check_steps.py` matches all 4 131 Gherkin steps against the step definitions and
   reports missing *and ambiguous* matches (and features without an epic) without touching the API
-- **Parallel CI by IP** — six matrix jobs, one runner (IP, rate-limit budget) each; a report job merges the results
+- **Parallel CI by IP** — six matrix jobs, one runner (IP, rate-limit budget) each; a report job merges the results:
+  the full live suite runs in ≈ 8 min wall time instead of ≈ 21 min serially
 
 ---
 
