@@ -150,7 +150,8 @@ The old JS → Python porting table (`{string}` → `"{x}"`, `ctx.get(v, true).d
 - [x] **P11 Review fixes + refactor** (2026-10-26) — three independent reviews (correctness, simplicity, conventions)
   applied: cleanup-safe creates, strict contracts, spec-coverage attribution, CI re-run safety, WebSocket behind the
   service, composite setup steps, shared support helpers, request models for every body, dead code removed.
-- [ ] **P12** Wiki pages for the new domains (sibling checkout; push = publish).
+- [x] **P12 Wiki** (2026-10-26, wiki `f094437`) — all 15 pages rewritten for the new framework + API-Domains,
+  Spec-Drift-and-Coverage. First CI matrix run (PR #1): green in 7 min 43 s wall time (serial ≈ 21 min).
 
 ## 8. Live-API facts not in the Swagger spec (verified 2026-10-26)
 
