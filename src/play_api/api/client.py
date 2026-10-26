@@ -32,6 +32,7 @@ from play_api import pacing
 from play_api.config import settings
 from play_api.models.requests import Body
 from play_api.models.responses import contract_for
+from play_api.redaction import scrub
 
 Headers = dict[str, str]
 # a list of pairs when a header repeats (`X-Custom: one` + `X-Custom: two`)
@@ -66,7 +67,9 @@ def _wire_headers(headers: Headers | HeaderPairs | None) -> HeaderPairs:
     return [(name, value.strip()) for name, value in pairs]
 
 
-def _attach_text(text: str, name: str, kind: Any) -> None:
+def attach(text: str, name: str, kind: Any = allure.attachment_type.TEXT) -> None:
+    """The ONE way anything is attached to the report: secrets scrubbed (the report is published), size capped."""
+    text = scrub(text)
     if len(text) > _ATTACH_LIMIT:
         text = f"{text[:_ATTACH_LIMIT]}\n… truncated ({len(text)} chars in total)"
     allure.attach(text, name, kind)
@@ -81,38 +84,36 @@ def _attach_request(
 ) -> None:
     if params:
         pairs = list(params.items()) if isinstance(params, Mapping) else list(params)
-        allure.attach(jsonlib.dumps(pairs, indent=2), "Query Params", allure.attachment_type.JSON)
+        attach(jsonlib.dumps(pairs, indent=2), "Query Params", allure.attachment_type.JSON)
     if headers:
-        allure.attach(jsonlib.dumps(headers, indent=2), "Request Headers", allure.attachment_type.JSON)
+        attach(jsonlib.dumps(headers, indent=2), "Request Headers", allure.attachment_type.JSON)
     if json is not None:
-        _attach_text(jsonlib.dumps(json, indent=2, ensure_ascii=False), "Request Body", allure.attachment_type.JSON)
+        attach(jsonlib.dumps(json, indent=2, ensure_ascii=False), "Request Body", allure.attachment_type.JSON)
     if isinstance(content, str):
-        _attach_text(content, "Request Body", allure.attachment_type.TEXT)
+        attach(content, "Request Body", allure.attachment_type.TEXT)
     elif isinstance(content, bytes):
-        allure.attach(f"<{len(content)} bytes>", "Request Body", allure.attachment_type.TEXT)
+        attach(f"<{len(content)} bytes>", "Request Body", allure.attachment_type.TEXT)
     if files:
         summary = [{"field": name, "filename": f[0], "bytes": len(f[1]), "content_type": f[2]} for name, f in files]
-        allure.attach(jsonlib.dumps(summary, indent=2), "Multipart Files", allure.attachment_type.JSON)
+        attach(jsonlib.dumps(summary, indent=2), "Multipart Files", allure.attachment_type.JSON)
 
 
 def _attach_response(response: httpx.Response) -> Any:
     """Attach status, headers and body; return the parsed JSON body (None when not JSON)."""
-    allure.attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
-    allure.attach(jsonlib.dumps(dict(response.headers), indent=2), "Response Headers", allure.attachment_type.JSON)
+    attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
+    attach(jsonlib.dumps(dict(response.headers), indent=2), "Response Headers", allure.attachment_type.JSON)
     if not response.content:
         return None
     try:
         parsed = response.json()
     except ValueError:
         if response.headers.get("content-type", "").startswith(("text/", "application/x-yaml", "application/yaml")):
-            _attach_text(response.text, "Response Body", allure.attachment_type.TEXT)
+            attach(response.text, "Response Body", allure.attachment_type.TEXT)
         else:
             content_type = response.headers.get("content-type")
-            allure.attach(
-                f"<{len(response.content)} bytes, {content_type}>", "Response Body", allure.attachment_type.TEXT
-            )
+            attach(f"<{len(response.content)} bytes, {content_type}>", "Response Body", allure.attachment_type.TEXT)
         return None
-    _attach_text(jsonlib.dumps(parsed, indent=2, ensure_ascii=False), "Response Body", allure.attachment_type.JSON)
+    attach(jsonlib.dumps(parsed, indent=2, ensure_ascii=False), "Response Body", allure.attachment_type.JSON)
     return parsed
 
 
@@ -125,7 +126,7 @@ def _check_contract(method: str, path: str, response: httpx.Response, parsed: An
             try:
                 contract.check(parsed)
             except AssertionError as exc:
-                raise ContractViolation(str(exc), response) from None
+                raise ContractViolation(scrub(str(exc)), response) from None
 
 
 def request(
@@ -165,11 +166,11 @@ def request(
             )
         except httpx.TimeoutException as exc:
             # an expected outcome in timeout scenarios: note it, leave the sub-step green, re-raise below
-            allure.attach(f"{type(exc).__name__} after the {timeout} s client timeout", "Timeout", "text/plain")
+            attach(f"{type(exc).__name__} after the {timeout} s client timeout", "Timeout", allure.attachment_type.TEXT)
             timed_out = exc
         else:
             for hop in response.history:
-                allure.attach(f"{hop.status_code} → {hop.headers.get('location')}", "Redirect", "text/plain")
+                attach(f"{hop.status_code} → {hop.headers.get('location')}", "Redirect", allure.attachment_type.TEXT)
             parsed = _attach_response(response)
             _check_contract(method, path, response, parsed)
     if timed_out is not None:
@@ -186,7 +187,7 @@ def stream(
         _attach_request(params, headers, None, None, None)
         pacing.throttle(method, path)
         with _client.stream(method, path, params=params, headers=_wire_headers(headers)) as response:
-            allure.attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
+            attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
             yield response
 
 

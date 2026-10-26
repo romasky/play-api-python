@@ -37,7 +37,7 @@ def sse_progress(params: Params) -> list[SseEvent]:
             elif line.startswith("data:"):
                 events.append(SseEvent(event, json.loads(line.removeprefix("data:").strip())))
                 event = "message"
-    allure.attach(json.dumps([e.__dict__ for e in events], indent=2), "SSE events", allure.attachment_type.JSON)
+    client.attach(json.dumps([e.__dict__ for e in events], indent=2), "SSE events", allure.attachment_type.JSON)
     return events
 
 
@@ -55,7 +55,7 @@ class WsSession:
     def receive_json(self) -> dict[str, Any]:
         with allure.step("WebSocket receive (JSON)"):
             frame = self._connection.recv(timeout=settings.request_timeout)
-            allure.attach(str(frame), "Frame", allure.attachment_type.TEXT)
+            client.attach(str(frame), "Frame")
             parsed: dict[str, Any] = json.loads(frame)
             return parsed
 
@@ -64,7 +64,7 @@ class WsSession:
         with allure.step(f"WebSocket echo ({'binary' if isinstance(frame, bytes) else 'text'})"):
             self._connection.send(frame)
             reply = self._connection.recv(timeout=settings.request_timeout)
-            allure.attach(repr(reply), "Reply", allure.attachment_type.TEXT)
+            client.attach(repr(reply), "Reply")
             return reply
 
     def close(self) -> None:
