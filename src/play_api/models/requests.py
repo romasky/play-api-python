@@ -123,6 +123,13 @@ class CreateMailboxReq(_Body):
     local_part: str | None = None
 
 
+class SendToReq(_Body):
+    to: str
+    from_: str | None = Field(default=None, alias="from")
+    subject: str | None = None
+    body: str | None = None
+
+
 class SendMessageReq(_Body):
     from_: str = Field(alias="from")
     subject: str

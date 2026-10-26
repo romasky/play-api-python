@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from pytest_bdd import parsers, then, when
 
-from play_api.models.requests import CreateMailboxReq, SendMessageReq
+from play_api.models.requests import CreateMailboxReq, SendMessageReq, SendToReq
 from play_api.models.responses.mail import assert_messages_have_no_full_body
 from play_api.services import mail
 from play_api.utils.gherkin import raw_json
+from tests.steps.parsing import quoted
 
 # ─── Create mailbox ────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ def create_mailbox(ctx, var):
     ctx.save(var, mail.create_mailbox())
 
 
-@when(parsers.parse('Create mailbox with domain "{domain}" and save response as "{var}"'))
+@when(quoted('Create mailbox with domain "{domain}" and save response as "{var}"'))
 def create_mailbox_domain(ctx, domain, var):
     ctx.save(var, mail.create_mailbox(CreateMailboxReq(domain=domain)))
 
@@ -32,7 +33,7 @@ def create_mailbox_context_local_part(ctx, key, var):
     ctx.save(var, mail.create_mailbox(CreateMailboxReq(local_part=ctx.str(key))))
 
 
-@when(parsers.parse('Create mailbox with domain "{domain}" local_part "{local_part}" and save response as "{var}"'))
+@when(quoted('Create mailbox with domain "{domain}" local_part "{local_part}" and save response as "{var}"'))
 def create_mailbox_domain_local_part(ctx, domain, local_part, var):
     ctx.save(var, mail.create_mailbox(CreateMailboxReq(domain=domain, local_part=local_part)))
 
@@ -81,6 +82,25 @@ def send_message(ctx, token_key, from_key, subject_key, body_key, var):
 @when(parsers.parse('Send message to token "{token_key}" with raw body "{raw}" and save response as "{var}"'))
 def send_message_raw(ctx, token_key, raw, var):
     ctx.save(var, mail.send(ctx.str(token_key), raw_json(raw)))
+
+
+# ─── SMTP response simulator (send-to) ─────────────────────────────────────
+
+
+@when(quoted('Send to "{to_key}" from mailbox "{token_key}" and save response as "{var}"'))
+def send_to(ctx, to_key, token_key, var):
+    ctx.save(var, mail.send_to(ctx.str(token_key), SendToReq(to=ctx.str(to_key))))
+
+
+@when(quoted('Send to "{to_key}" from mailbox "{token_key}" with subject "{subject}" and save response as "{var}"'))
+def send_to_with_subject(ctx, to_key, token_key, subject, var):
+    body = SendToReq(to=ctx.str(to_key), subject=subject, body="Sent through the SMTP response simulator")
+    ctx.save(var, mail.send_to(ctx.str(token_key), body))
+
+
+@when(parsers.parse('Send to from mailbox "{token_key}" with raw body "{raw}" and save response as "{var}"'))
+def send_to_raw(ctx, token_key, raw, var):
+    ctx.save(var, mail.send_to(ctx.str(token_key), raw_json(raw)))
 
 
 # ─── Typed list-shape assertion ────────────────────────────────────────────

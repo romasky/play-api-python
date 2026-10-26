@@ -134,6 +134,13 @@ def save_upper_cased(ctx, src_key, dest_key):
 # ─── Extract ───────────────────────────────────────────────────────────────
 
 
+@step(parsers.parse('Extract header "{header}" from "{var}" and save as "{key}"'))
+def extract_header(ctx, header, var, key):
+    value = ctx.response(var).headers.get(header)
+    assert value is not None, f"Header '{header}' not found in response '{var}'"
+    ctx.save(key, value)
+
+
 @step(parsers.parse('Extract "{field}" from "{var}" and save as "{key}"'))
 def extract_field(ctx, field, var, key):
     body = ctx.body(var)
@@ -227,7 +234,8 @@ def assert_link_absent(ctx, rel, var):
 # ─── Typed body-field assertions ───────────────────────────────────────────
 
 
-@then(parsers.parse('Assert field "{field}" equals "{expected}" in response "{var}"'))
+# regex so the expected value may be empty (`equals ""`); parse's {} needs at least one character
+@then(parsers.re(r'Assert field "(?P<field>[^"]+)" equals "(?P<expected>.*)" in response "(?P<var>[^"]+)"'))
 def assert_field_equals(ctx, field, expected, var):
     actual = get_path(ctx.body(var), field)
     resolved = ctx.str(expected)
@@ -238,6 +246,20 @@ def assert_field_equals(ctx, field, expected, var):
 def assert_field_not_null(ctx, field, var):
     body = ctx.body(var)
     assert get_path(body, field) is not None, f"Field '{field}' is null/missing. Body: {body}"
+
+
+@then(quoted('Assert field "{field}" of "{var}" equals field "{other_field}" of "{other_var}"'))
+def assert_fields_equal_across(ctx, field, var, other_field, other_var):
+    actual, expected = get_path(ctx.body(var), field), get_path(ctx.body(other_var), other_field)
+    assert actual is not None and actual == expected, (
+        f"{var}.{field} = {actual!r} but {other_var}.{other_field} = {expected!r}"
+    )
+
+
+@then(parsers.parse('Assert field "{field}" has length {n:d} in response "{var}"'))
+def assert_field_length(ctx, field, n, var):
+    value = get_path(ctx.body(var), field)
+    assert value is not None and len(value) == n, f"Field '{field}' has length {len(value or '')}, expected {n}"
 
 
 @then(parsers.parse('Assert field "{field}" is null in response "{var}"'))

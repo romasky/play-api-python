@@ -9,12 +9,24 @@ Two uses:
 
 `extra="allow"` everywhere: the API may add fields; contracts assert presence of the documented ones.
 New 2xx endpoint → add its contract to the domain module AND a row to that module's `CONTRACTS_2XX`.
-Endpoints answering 2xx with an empty body (DELETE, HEAD, OPTIONS, 202 captures) have no row.
+Endpoints answering 2xx with an empty body (DELETE 204, HEAD, OPTIONS) or raw bytes (downloads) have no row.
 """
 
 from __future__ import annotations
 
-from play_api.models.responses import admin, auth, files, mail, system, users, webhooks
+from play_api.models.responses import (
+    admin,
+    auth,
+    bug_reports,
+    buggy,
+    challenges,
+    chaos,
+    files,
+    mail,
+    system,
+    users,
+    webhooks,
+)
 from play_api.models.responses.base import Contract, Entry
 
 _CONTRACTS_2XX: tuple[Entry, ...] = (
@@ -25,6 +37,10 @@ _CONTRACTS_2XX: tuple[Entry, ...] = (
     *mail.CONTRACTS_2XX,
     *files.CONTRACTS_2XX,
     *webhooks.CONTRACTS_2XX,
+    *bug_reports.CONTRACTS_2XX,
+    *buggy.CONTRACTS_2XX,
+    *challenges.CONTRACTS_2XX,
+    *chaos.CONTRACTS_2XX,
 )
 
 

@@ -37,12 +37,23 @@ class MessageResponse(Contract):
     received_at: str
 
 
+class SendToResponse(Contract):
+    """No `success` field. Magic recipients add `enhanced_status`; accepted ones add `message_id`."""
+
+    accepted: bool
+    to: str
+    smtp_code: str
+    category: str
+    message: str
+
+
 CONTRACTS_2XX = (
     entry("POST", r"/mail/create", MailboxResponse),
     entry("GET", r"/mail/[^/]+", MailboxResponse),
     entry("GET", r"/mail/[^/]+/messages", MessagesListResponse),
     entry("GET", r"/mail/[^/]+/messages/[^/]+", MessageResponse),
     entry("POST", r"/mail/[^/]+/send", MessageResponse),
+    entry("POST", r"/mail/[^/]+/send-to", SendToResponse),
 )
 
 

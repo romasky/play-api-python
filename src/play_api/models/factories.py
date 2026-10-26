@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from play_api.config import settings
 from play_api.models.requests import (
     AddressReq,
@@ -103,3 +105,64 @@ def user_with_all_optional_fields() -> CreateUserReq:
             private_profile=False,
         ),
     )
+
+
+# ─── Bug reports (POST /bug-reports, auto-scored) ──────────────────────────
+# A report scores 100 when: ≥ 2 steps, one step names the bug's METHOD + path, expected/actual are
+# ≥ 10 chars and differ, the severity is in the bug's allowed set, and the title is ≥ 12 chars.
+
+_BUG_ENDPOINTS = {
+    "pagination-off-by-one": ("GET", "/buggy/items"),
+    "cart-total-wrong": ("POST", "/buggy/cart/total"),
+    "timezone-shift": ("GET", "/buggy/schedule"),
+}
+_ALLOWED_SEVERITY = {"pagination-off-by-one": "low", "cart-total-wrong": "high", "timezone-shift": "medium"}
+
+
+def perfect_bug_report(bug_id: str = "cart-total-wrong", severity: str | None = None) -> dict[str, Any]:
+    method, path = _BUG_ENDPOINTS.get(bug_id, ("GET", "/buggy"))
+    return {
+        "bug_id": bug_id,
+        "title": f"{method} {path} returns a wrong result",
+        "steps": ["Open the Buggy API catalog", f"Call {method} {path} with the documented example"],
+        "expected": "The documented, mathematically correct result",
+        "actual": "A result that differs from the documented one",
+        "severity": severity or _ALLOWED_SEVERITY.get(bug_id, "medium"),
+    }
+
+
+def _without(body: dict[str, Any], key: str) -> dict[str, Any]:
+    return {k: v for k, v in body.items() if k != key}
+
+
+# every variant starts from a perfect cart-total-wrong report
+_BUG_REPORT_VARIANTS = {
+    "zero score": lambda b: {
+        **b,
+        "title": "bug",
+        "steps": ["do it"],
+        "expected": "same",
+        "actual": "same",
+        "severity": "low",
+    },
+    "lowercase method in steps": lambda b: {**b, "steps": ["Open the catalog", "call post /buggy/cart/total"]},
+    "missing bug_id": lambda b: _without(b, "bug_id"),
+    "bug_id 65 chars": lambda b: {**b, "bug_id": "b" * 65},
+    "missing severity": lambda b: _without(b, "severity"),
+    "blocker severity": lambda b: {**b, "severity": "blocker"},
+    "capitalised severity": lambda b: {**b, "severity": "Medium"},
+    "blank title": lambda b: {**b, "title": "   "},
+    "title 201 chars": lambda b: {**b, "title": "t" * 201},
+    "expected 2001 chars": lambda b: {**b, "expected": "e" * 2001},
+    "no steps": lambda b: {**b, "steps": []},
+    "21 steps": lambda b: {**b, "steps": [f"step {i}" for i in range(21)]},
+    "a blank step": lambda b: {**b, "steps": ["first step", "   "]},
+    "oversized body": lambda b: {**b, "padding": "x" * (64 * 1024 + 1)},
+}
+
+
+def bug_report(variant: str) -> dict[str, Any]:
+    assert variant in _BUG_REPORT_VARIANTS, (
+        f"unknown variant '{variant}', expected one of {sorted(_BUG_REPORT_VARIANTS)}"
+    )
+    return _BUG_REPORT_VARIANTS[variant](perfect_bug_report())

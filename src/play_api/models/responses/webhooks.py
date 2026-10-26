@@ -53,9 +53,9 @@ class WebhookEvent(Contract):
     method: str
     path: str
     headers: dict[str, list[str]]
-    query: dict[str, list[str]]
+    query: dict[str, list[str]] | None = None  # omitted when the request had no query string
     content_type: str
-    body: str | None = Field(...)  # null for HEAD
+    body: str | None = None  # omitted for an empty body (HEAD included)
     body_size: int
     body_encoding: str  # "utf8" | "base64"
     signature_valid: bool | None = Field(...)

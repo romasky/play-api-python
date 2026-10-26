@@ -17,6 +17,7 @@ dev = [
   "faker>=30",
   "ruff>=0.16.5",
   "mypy>=2.3.1",
+  "websockets>=15",
 ]
 
 [build-system]

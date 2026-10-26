@@ -35,7 +35,8 @@ _SAMPLES: dict[str, tuple[bytes, str]] = {
     "отчёт 1.txt": ("отчёт\n".encode(), "text/plain"),
     "fake.png": (b"this is plain text pretending to be a PNG", "image/png"),
     "program.exe": (b"MZ\x90\x00\x03\x00\x00\x00" + bytes(56), "application/octet-stream"),
-    "noextension": (BINARY * 8, "application/octet-stream"),
+    # NUL-leading bytes: Go's sniffer reads a leading ff fe as a UTF-16 BOM (→ text/plain), not binary
+    "noextension": (bytes(range(32)) * 4, "application/octet-stream"),
     "empty.txt": (b"", "text/plain"),
 }
 # size boundaries, built on demand (≈ 5 MiB each)

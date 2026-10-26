@@ -30,3 +30,8 @@ def get_message(token: str, message_id: str) -> httpx.Response:
 
 def send(token: str, body: JsonBody) -> httpx.Response:
     return client.post(paths.mail_send(token), to_json(body))
+
+
+def send_to(token: str, body: JsonBody) -> httpx.Response:
+    """SMTP response simulator — always 200; `accepted` tells the delivery outcome."""
+    return client.post(paths.mail_send_to(token), to_json(body))

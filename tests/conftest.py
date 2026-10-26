@@ -21,6 +21,9 @@ pytest_plugins = [
     "tests.steps.options_steps",
     "tests.steps.admin_steps",
     "tests.steps.auth_steps",
+    "tests.steps.files_steps",
+    "tests.steps.webhooks_steps",
+    "tests.steps.bug_reports_steps",
 ]
 
 
