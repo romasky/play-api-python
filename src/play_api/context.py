@@ -9,22 +9,43 @@ Gherkin steps share data through string keys:
 
 In pytest-bdd the *instance* is a function-scoped fixture (see tests/conftest.py), so the
 local store does not need to be keyed by scenario name as in JS.
+
+`defer(fn)` registers a teardown action (delete the inbox / file / mailbox a step created); the
+fixture runs them LIFO after the scenario, pass or fail. Server-side quotas (20 webhook inboxes per
+IP, shared file storage) make this mandatory for anything a scenario creates and does not delete.
 """
 
 from __future__ import annotations
 
 import builtins
+import re
+from collections.abc import Callable
 from typing import Any
 
 import httpx2 as httpx
 
 _MISSING = object()
+_PLACEHOLDER = re.compile(r"\$\{(\w+)\}")
 
 
 class ScenarioContext:
     def __init__(self, global_store: dict[str, Any]) -> None:
         self._global = global_store
         self._local: dict[str, Any] = {}
+        self._cleanups: list[Callable[[], object]] = []
+
+    def defer(self, action: Callable[[], object]) -> None:
+        self._cleanups.append(action)
+
+    def run_cleanups(self) -> list[BaseException]:
+        """Run every deferred action (LIFO); return the errors instead of raising mid-way."""
+        errors: list[BaseException] = []
+        while self._cleanups:
+            try:
+                self._cleanups.pop()()
+            except Exception as exc:
+                errors.append(exc)
+        return errors
 
     @staticmethod
     def _split(key: str) -> tuple[str, bool]:
@@ -51,12 +72,22 @@ class ScenarioContext:
             return key  # passthrough: literal string
         return value
 
+    def require(self, key: str) -> Any:
+        """The stored value; fails loudly when a previous step did not save it."""
+        return self.get(key, fail_if_missing=True)
+
     def opt(self, key: str) -> Any | None:
         clean, is_global = self._split(key)
         return self._global.get(clean) if is_global else self._local.get(clean, self._global.get(clean))
 
     def str(self, key: builtins.str) -> builtins.str:
-        return builtins.str(self.get(key))
+        """A context value as text; a literal (unknown key) gets its `${key}` placeholders interpolated."""
+        value = self.get(key)
+        return self.render(key) if value is key and "${" in key else builtins.str(value)
+
+    def render(self, template: builtins.str) -> builtins.str:
+        """Interpolate `${key}` placeholders (query strings, raw bodies); an unknown key fails loudly."""
+        return _PLACEHOLDER.sub(lambda m: builtins.str(self.get(m.group(1), fail_if_missing=True)), template)
 
     def response(self, var_name: builtins.str) -> httpx.Response:
         """A saved httpx.Response (fails loudly if missing)."""

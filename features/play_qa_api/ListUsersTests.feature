@@ -43,22 +43,25 @@ Feature: List Users
     And Assert response header "cache-control" contains "no-store" in "response"
 
   # ─────────────────── NEGATIVE / BOUNDARY PAGINATION ───────────────────
-  # API_REFERENCE does not fix the exact code for invalid pagination params, so these
-  # assert the weaker-but-true property (never 5xx, and either 200 or 400).
-  # Observed live behavior: 400 INVALID_PAGINATION for non-positive / non-numeric values,
-  # 200 (clamped) for per_page above the maximum.
+  # Swagger (2026-10) documents the codes: non-positive / non-numeric page or per_page → 400 INVALID_PAGINATION;
+  # per_page above 100 is clamped to 100 (200).
 
   @Run @Negative @allure.label.story:Negative_Scenario
-  Scenario Outline: Users list with invalid pagination <label> does not 5xx
+  Scenario Outline: Users list with invalid pagination <label> returns 400 INVALID_PAGINATION
     When Send GET users list request with page "<page>" per_page "<per_page>" and save response as "response"
-    Then Assert response is not a server error in "response"
-    And Assert status code is one of "200,400" in "response"
+    Then Get and check status code 400 from "response"
+    And Assert error code is "INVALID_PAGINATION" in response "response"
     Examples:
       | label             | page | per_page |
       | per_page zero     | 1    | 0        |
       | per_page negative | 1    | -5       |
       | page zero         | 0    | 10       |
       | page negative     | -1   | 10       |
-      | per_page over max | 1    | 100000   |
       | page non-numeric  | abc  | 10       |
       | perPage non-num   | 1    | xyz      |
+
+  @Run @Positive @allure.label.story:Positive_Scenario
+  Scenario: Users list with per_page over the maximum is clamped to 100
+    When Send GET users list request with page "1" per_page "100000" and save response as "response"
+    Then Get and check status code 200 from "response"
+    And Assert field "per_page" equals "100" in response "response"

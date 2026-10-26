@@ -6,8 +6,9 @@
 
 **Swagger UI:** `/swagger/index.html`
 
-> **Test coverage note (play-api-js):** every endpoint below has a feature file except `POST /verify-recaptcha`,
-> which is out of scope (requires a live Google reCAPTCHA v2 token). `GET /auth/basic` is covered by `BasicAuthTests.feature`.
+> **Test coverage (2026-10-26):** every operation of the Swagger spec (snapshot `docs/openapi.json`, 79 operations)
+> is called by at least one scenario — `tools/spec_coverage.py`. Part 1 below is the original user / mail API;
+> [Part 2](#part-2--domains-added-in-2026) summarises the domains added since, with the live-verified error codes.
 
 ---
 
@@ -37,7 +38,8 @@
    - [Get Message](#18-get-apiv1mailtokenmessagesid)
    - [Send Message](#19-post-apiv1mailtokensend)
    - [Delete Mailbox](#20-delete-apiv1mailtoken)
-6. [All Error Codes Reference](#all-error-codes-reference)
+6. [Part 2 — domains added in 2026](#part-2--domains-added-in-2026)
+7. [All Error Codes Reference](#all-error-codes-reference)
 
 ---
 
@@ -111,7 +113,11 @@ A token is invalidated (revoked to empty string in DB) on logout. Any subsequent
 ## Rate Limiting
 
 | Limiter | Scope | Rate | Burst | 429 Message |
-|---|---|---|---|---|
+|> Per-endpoint buckets for the endpoints added since (create-admin and challenge start share the create-user
+> bucket; JWT, uploads, inboxes, store login, bug reports have their own; `TOO_MANY_INBOXES` is a second 429 code):
+> see [Part 2 — Rate limits](#rate-limits-per-ip-token-buckets-no-retry-after--x-ratelimit--on-any-429).
+
+---|---|---|---|---|
 | **GlobalRateLimiter** | Every route, per IP | 10 req/s | 20 | "Maximum 10 requests per second allowed" |
 | **LoginRateLimiter** | `POST /login` only, per IP | 5 req/min (1 per 12 s) | 5 | "Maximum 5 login attempts per minute allowed" |
 | **CreateUserRateLimiter** | `POST /users/create` only, per IP | ~100/min (1 per 600 ms) | 100 | "Maximum 100 user creations per minute allowed" |
@@ -278,7 +284,7 @@ WWW-Authenticate: Basic realm="Test Authentication", charset="UTF-8"
 
 | Status | Body | Trigger |
 |---|---|---|
-| 400 | `{"success":false,"error":"Token is required"}` | `token` field missing |
+| 400 | `{"success":false,"error":"Invalid request body"}` | `token` missing, empty, not a string, or a non-JSON body (live 2026-10; earlier docs said "Token is required") |
 | 500 | `{"success":false,"error":"<message>"}` | `RECAPTCHA_SECRET_KEY` env not set, Google unreachable, or parse failure |
 
 ---
@@ -485,19 +491,23 @@ WWW-Authenticate: Basic realm="Test Authentication", charset="UTF-8"
 
 ### 6. GET /api/v1/users/list
 
-**Auth:** None  
-**Response headers:** `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, `Pragma: no-cache`, `Surrogate-Control: no-store`
+**Auth:** optional — see [Optional authentication on reads](#optional-authentication-on-reads-feature-17)  
+**Response headers:** `X-Total-Count` (= `total`), `Link` (RFC 8288, relative URLs: `first`, `prev`, `next`, `last`; every
+link keeps sort/filter/search and rewrites `per_page` to `limit`), `Cache-Control: no-store, …`. Not set on 4xx.
 
 #### Query parameters
 
-| Param | Type | Default | Notes |
-|---|---|---|---|
-| `page` | int | `1` | Page number |
-| `per_page` | int | `10` | Items per page; clamped to 1–100 by the service |
+Defaults apply only when a parameter is ABSENT — a present-but-empty value (`sort=`, `limit=` …) is a 400.
+Validation order (first error wins): page → limit → per_page → sort → filter → search.
 
-> **Observed (not in the original spec):** non-positive or non-numeric `page`/`per_page` return
-> `400 INVALID_PAGINATION` (`details`: "'page' must be a positive integer"); `per_page` above 100 is clamped and returns 200.
-> `ListUsersTests.feature` asserts only the weaker "not 5xx, one of 200/400" property until the contract is confirmed.
+| Param | Default | Rule |
+|---|---|---|
+| `page` | `1` | 1–1 000 000; beyond the last page → 200 with `users: []` |
+| `limit` | `10` | ≥ 1, above 100 clamped to 100 |
+| `per_page` | — | legacy alias of `limit` (limit wins, but per_page is still validated) |
+| `sort` | `created_at:desc` | `field[:asc\|desc]`, case-sensitive; fields `created_at, updated_at, login_count, last_login_at, username, email`; binary string order |
+| `filter` | — | `field:value`, repeatable, AND across fields, max 10, the same field twice rejected; `role` (user/admin/moderator), `is_active`/`is_verified`/`is_premium` (`true`/`false`), `employment.status`, `settings.theme`, `settings.language` (2 letters, lower-cased first), `address.country` (exact, 1–64) |
+| `search` | — | 1–64 chars after trimming; case-insensitive substring of username, email, first and last name; regex metacharacters are literal |
 
 #### Response 200
 
@@ -518,23 +528,34 @@ WWW-Authenticate: Basic realm="Test Authentication", charset="UTF-8"
   ],
   "page": 1,
   "per_page": 10,
+  "total": 412,
   "total_pages": 42
 }
 ```
 
-> `access_token` is not included in list items.
+> `access_token` is not included in list items. The collection is shared with every client: `total` changes between
+> calls — assert exact counts only inside a filter that isolates your own users (a unique `address.country`).
 
 #### Error responses
 
 | Status | Code | Trigger |
 |---|---|---|
+| 400 | `INVALID_PAGINATION` | `page` / `limit` / `per_page` empty, non-integer, ≤ 0, or `page` > 1 000 000 |
+| 400 | `INVALID_SORT_FIELD` | empty `sort`, unknown or non-sortable field (`password`, `Username`, `metadata.created_at`) |
+| 400 | `INVALID_SORT_DIR` | direction other than `asc`/`desc` (`username:`, `username:ASC`, `username:asc:x`) |
+| 400 | `TOO_MANY_FILTERS` | more than 10 `filter` entries |
+| 400 | `INVALID_FILTER_FIELD` | not `field:value`, or a field outside the whitelist |
+| 400 | `DUPLICATE_FILTER_FIELD` | the same field twice |
+| 400 | `INVALID_FILTER_VALUE` | a value outside the field's allowed set (`role:root`, `is_active:1`, country > 64 chars) |
+| 400 | `INVALID_SEARCH` | empty, whitespace-only or > 64 chars |
+| 401 | `INVALID_TOKEN_FORMAT` / `INVALID_TOKEN` | a PRESENT bad Authorization header (checked before the parameters) |
 | 500 | `INTERNAL_ERROR` | Database query failure |
 
 ---
 
 ### 7. GET /api/v1/users/get/:id
 
-**Auth:** None
+**Auth:** optional — see [Optional authentication on reads](#optional-authentication-on-reads-feature-17)
 
 #### Path parameters
 
@@ -550,8 +571,21 @@ Full `UserResponse` object (same shape as a list item, without `access_token`).
 
 | Status | Code | Trigger |
 |---|---|---|
+| 401 | `INVALID_TOKEN_FORMAT` / `INVALID_TOKEN` | a PRESENT bad Authorization header (checked before the id) |
 | 404 | `USER_NOT_FOUND` | Invalid ObjectID format or user not found |
 | 500 | `INTERNAL_ERROR` | Database error |
+
+#### Optional authentication on reads (Feature 17)
+
+`GET /users/get/:id` and `GET /users/list` stay public, but a present `Authorization` header must be valid:
+
+| Authorization | Result |
+|---|---|
+| absent, or an empty value | 200 (anonymous) |
+| `Bearer`, `Basic …`, no prefix, lowercase `bearer`, extra parts | 401 `INVALID_TOKEN_FORMAT` |
+| `Bearer <unknown / revoked / superseded token>` | 401 `INVALID_TOKEN` |
+| the owner's valid token | 200 **plus `metadata.last_login_ip`** (once the user has logged in) |
+| another user's or an admin's valid token | 200 without `last_login_ip` — reads never answer 403 |
 
 ---
 
@@ -975,17 +1009,178 @@ Empty body. Mailbox and all its messages permanently deleted.
 
 ---
 
+## Part 2 — domains added in 2026
+
+Verified live 2026-10-26 against `https://play-qa.com/api/v1`; the Swagger snapshot is `docs/openapi.json`.
+Only behaviour that matters for tests is listed — request/response shapes are in the spec and in the
+pydantic contracts (`src/play_api/models/responses/`). "not in spec" marks a live finding the spec does not state.
+
+### Rate limits (per IP, token buckets; no `Retry-After` / `X-RateLimit-*` on any 429)
+
+| Bucket | Endpoints | Refill / burst |
+|---|---|---|
+| create-user | `POST /users/create`, `/users/create-admin`, `/challenges/{id}/start` (creates a sandbox) | 1 / 600 ms, 100 |
+| login | `POST /login` | 1 / 12 s, 5 |
+| jwt-login | `POST /jwt/login` — every call counts, 400s included | 1 / 12 s, 5 |
+| jwt-decode | `POST /jwt/decode` | 1 / 2 s, 10 |
+| upload / inbox | `POST /files/upload`, `POST /webhooks/inbox` | 10 / min, 5 |
+| store / bug report | `POST /store/login`, `POST /bug-reports` (400s count) | 30 / min, 10 |
+| global | everything | 10 / s, 20 |
+
+### Admin — `POST /users/create-admin`, `/admin/*`
+
+| Case | Status | Code |
+|---|---|---|
+| create-admin: body invalid (checked first) | 400 | `VALIDATION_ERROR` |
+| create-admin: seed wrong, absent or empty (same answer — not an oracle); seed `play-qa-admin` is published in the UI | 403 | `INVALID_SEED_CODE` (not in spec) |
+| create-admin: duplicate email with a valid seed (seed checked before uniqueness) | 409 | `DUPLICATE_USER` |
+| `/admin/*` with a valid non-admin token (checked before scope and body) | 403 | `ADMIN_REQUIRED` (not in spec) |
+| role / delete on ANY id but your own — foreign, non-existent or malformed (the 404 is unreachable) | 403 | `FORBIDDEN` |
+| role body not `{"role":"user"\|"admin"}` | 400 | `VALIDATION_ERROR` |
+
+`/admin/users` accepts `limit` (not in spec), validates like `/users/list` and sends no `X-Total-Count` / `Link`;
+rows add `has_active_token` and never carry `access_token` or `last_login_ip`. Self-demotion is irreversible.
+`/users/create` silently ignores `role` / `metadata.role` (always role `user`).
+
+### JWT — `/jwt/login`, `/jwt/me`, `/jwt/refresh`, `/jwt/decode`
+
+| Case | Status | Code |
+|---|---|---|
+| login: missing/invalid email, missing password, `access_ttl_seconds` outside 1–900 or not an integer | 400 | `VALIDATION_ERROR` |
+| login: wrong password or unknown email (no password min length here) | 401 | `INVALID_CREDENTIALS` |
+| any JWT endpoint: body > 16 KiB | 413 | `PAYLOAD_TOO_LARGE` |
+| me: no header / malformed header / non-JWT value / token > 8 KiB | 401 | `MISSING_TOKEN` / `INVALID_TOKEN_FORMAT` |
+| me, refresh: wrong secret, tampered payload, `alg: none`, `alg: HS512` (signature checked before expiry) | 401 | `INVALID_SIGNATURE` |
+| me, refresh: genuine but expired (expiry checked before type) | 401 | `TOKEN_EXPIRED` |
+| me with a refresh token / refresh with an access token | 401 | `WRONG_TOKEN_TYPE` |
+| refresh: no / empty `refresh_token` in the BODY (the Authorization header is ignored) | 400 | `VALIDATION_ERROR` |
+| decode: not a JWT (1/2/4 segments, padding, bad base64, non-JSON payload, > 8 KiB) | 400 | `INVALID_JWT_FORMAT` |
+
+Access tokens live 900 s (or the requested TTL), refresh tokens 86 400 s; **the refresh token is reusable** and every
+refreshed access token gets 900 s. A JWT login does not rotate the opaque token; the two schemes never mix
+(a JWT on `/users/get` → 401 `INVALID_TOKEN`). decode always returns `signature_valid`, `expired`, `expires_at`,
+`issued_at` — `null`, never missing.
+
+### Store — `POST /store/login` (SauceDemo personas, password `secret_sauce`)
+
+`standard_user`, `problem_user` (`visual_bugs`), `flaky_user` (`flaky_add_to_cart`), `performance_glitch_user`
+(≈ 3 s server delay) → 200. `locked_out_user` → 403 `USER_LOCKED_OUT` — but only with the right password: the lock
+is checked after it (wrong password → 401 `INVALID_CREDENTIALS`). Credentials are case- and whitespace-sensitive;
+username ≤ 64, password ≤ 128, both required → 400 `VALIDATION_ERROR`.
+
+### Files — `/files/*`
+
+| Case | Status | Code |
+|---|---|---|
+| not multipart | 400 | `INVALID_MULTIPART` |
+| no `file` part (or another field name) | 400 | `NO_FILE` |
+| 0-byte file / description > 200 | 400 | `EMPTY_FILE` / `VALIDATION_ERROR` |
+| extension outside .png .jpg .jpeg .pdf .txt .csv .json, or extension-less binary | 415 | `UNSUPPORTED_MEDIA_TYPE` |
+| content does not match the extension (text in a .png) | 422 | `CORRUPTED_FILE` |
+| part > 5 MiB (5 242 880 inclusive is fine) or whole body > 5 MiB + 64 KiB | 413 | `FILE_TOO_LARGE` |
+| upload/delete with a present bad header (never a silent anonymous upload) | 401 | `INVALID_TOKEN` / `INVALID_TOKEN_FORMAT` |
+| my files: no token / page outside 1–1000 / per_page outside 1–50 | 401 / 400 | `MISSING_TOKEN` / `VALIDATION_ERROR` |
+| download `inline` other than `true`/`false` | 400 | `VALIDATION_ERROR` |
+| unknown id; another user's file deleted by anyone else or with no token | 404 | `FILE_NOT_FOUND` |
+
+`content_type` is sniffed, `declared_type` echoes the part. Metadata and download are public and ignore a bad
+token; download is byte-exact with `Content-Disposition` (ASCII fallback + RFC 5987 `filename*`), `nosniff` and a
+sandbox CSP, and has no checksum header. Anonymous files can be deleted by anyone. HEAD on a download → 404.
+
+### Webhooks — `/webhooks/*`
+
+Private `token` (read / delete) and public `ingest_token` (capture only) are not interchangeable (404 `WEBHOOK_NOT_FOUND`).
+Capture: GET/POST/PUT/PATCH/DELETE → 202 `{received, event_id}`; HEAD → 202, empty body, `X-PlayQA-Event-Id`;
+OPTIONS → 204, not captured. Body ≤ 64 KiB (65 537 → 413 `PAYLOAD_TOO_LARGE`, nothing stored); repeated headers and
+query keys kept; `Authorization` / `Cookie` masked `***`; binary bodies base64. Signature `t=<unix>,v1=<hmac-sha256>`
+→ `signature_valid` true / false (wrong HMAC, tampered, timestamp outside ±300 s — not in spec) / null (absent or
+empty header); it never blocks a capture. Events: `page` invalid → 400 `VALIDATION_ERROR`, `per_page` invalid →
+silently 20, > 100 clamped; unknown or foreign event → 404 `EVENT_NOT_FOUND`. Inboxes live 2 h, 20 active per IP
+(429 `TOO_MANY_INBOXES`; the creation rate limit is 429 `RATE_LIMIT_EXCEEDED`). No `success` key on any 2xx.
+
+### SMTP response simulator — `POST /mail/{token}/send-to`
+
+Always 200. 34 magic local parts (`mailbox-full` 552 5.2.2 … `server-shutdown` 421 4.3.2, full table in
+`features/play_qa_api/MailSendToTests.feature`) answer `accepted:false` with `smtp_code`, `enhanced_status`, `category`,
+`message` and no `message_id`; they match case-insensitively on ANY domain or none (not in spec), sub-addressing
+breaks the match. Any other recipient → `accepted:true`, 250, `message_id`; the message is stored in the SENDER's
+mailbox and never delivered. `to` missing/empty/not a string → 400 `VALIDATION_ERROR` (checked before the mailbox:
+unknown token → 404 `MAILBOX_NOT_FOUND`). `POST /mail/create` with a magic local part → 409 `RESERVED_LOCAL_PART`.
+
+### Bug reports — `/bug-reports` (scored against `/buggy`)
+
+Score out of 100: has_steps 25 (≥ 2 steps) · steps_reproducible 20 (a step names the bug's method + path, method
+case-insensitive) · expected_actual 25 (both ≥ 10 chars, different) · severity_reasonable 15 (pagination-off-by-one
+low/medium, cart-total-wrong high/critical, timezone-shift medium/high) · title_quality 15 (≥ 12 chars). Anonymous →
+200 not saved; with a token → 201 saved 24 h. Unknown `bug_id` → 404 `UNKNOWN_BUG_ID`; field violations → 400
+`VALIDATION_ERROR` (messages are cosmetically garbled — assert codes); > 64 KiB → 413; a present bad token → 401 before
+validation; another user's report → 404 `REPORT_NOT_FOUND`.
+
+### Buggy API — `/buggy/*` (intentional, permanent bugs)
+
+`GET /buggy/items`: a FULL page drops its last item (page 1 / 10 → ids 1–9). `POST /buggy/cart/total`: the total
+ignores the last position (`[10×2, 5×3]` → 20.00). `GET /buggy/schedule`: 09:00 is built in UTC (`event_start_utc`
+always `<date>T09:00:00Z`, `event_start` shifted by the zone offset; invisible in UTC). All validation → 400 `VALIDATION_ERROR`.
+
+### Chaos — `/chaos/*`
+
+| Endpoint | Behaviour | Errors (400 unless noted) |
+|---|---|---|
+| `cache` | ETag `"chaos-v1"`, weak/list/`*` If-None-Match → 304; INM beats IMS | — |
+| `delay/{s}` | float seconds, max 9 (clamped) | `INVALID_DELAY` |
+| `timeout?after=` | holds, then 504 — **Cloudflare page, not the documented JSON** (not in spec) | `INVALID_TIMEOUT` (empty `after=` too) |
+| `echo` | parsed `body` for JSON, `raw_body` text, base64 for binary, masks secrets, truncates > 64 KiB | 413 `PAYLOAD_TOO_LARGE` > 1 MiB |
+| `flaky` / `sequence` / `step/{i}` | roll depends only on the seed; the flaky body comes on every status | `INVALID_SEED`, `SEED_REQUIRED`, `INVALID_FAIL_RATE`, `INVALID_FAIL_STATUS`, `INVALID_COUNT`, `INVALID_INDEX` (index before seed) |
+| `gzip` | encoding follows Accept-Encoding (spec: always gzip) | — |
+| `redirect/{n}` | status = `type` 301/302/307/308 (spec: 302), relative Location; `/done` always `redirected:true` | `INVALID_REDIRECT_COUNT`, `TOO_MANY_REDIRECTS` (> 10), `INVALID_REDIRECT_TYPE` |
+| `status/{code}` | 200–599, `{status_code, message}`; 204/205/304 bodyless; 502/504/52x replaced by Cloudflare | `INVALID_STATUS_CODE` |
+
+### Challenges — `/challenges/*`
+
+Four challenges (delete-user-404 10, patch-first-name 10, logout-revokes-token 20, login-rotates-token 20).
+Auth before id. `start` → 201 with a sandbox user and its token; a repeat → 200 without the token; a deleted
+sandbox → 200 `target_missing` + `can_reset` (only then); `reset` accepts only `true`/`false`. `verify` before start, or
+with an unknown / malformed `attempt_id` → 409 `NO_OPEN_ATTEMPT`; unknown params → 400. Hints in order (409
+`HINT_LEVEL_OUT_OF_ORDER`), idempotent, never cost points. Unknown id → 404 `CHALLENGE_NOT_FOUND`.
+
+### Documents, streaming, misc
+
+`/openapi.json`, `/openapi.yaml`, `/postman/collection.json` (19 variables; spec lists 7), `/postman/environment.json`:
+attachments by default, inline with `?download=false`. `GET /sse/progress`: `steps` 5–100, `interval_ms` 100–2000
+(bounds not in spec) → `event: progress` × steps, then `event: done`. `GET /ws/echo`: welcome frame, text and binary
+echo; a plain GET → 426 `UPGRADE_REQUIRED`; messages > 32 KiB close with 1009 (not in spec). Unrouted methods →
+`404 text/plain "404 page not found"`, never 405 (HEAD `/health` included).
+
+---
+
 ## All Error Codes Reference
 
 | Code | HTTP Status | Description |
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | Request body failed validation (missing required field, invalid format, bad enum value, etc.) |
 | `MISSING_USER_ID` | 400 | `:id` path parameter is empty (checked by BearerAuth middleware) |
-| `INVALID_PAGINATION` | 400 | *(observed, undocumented)* `page`/`per_page` not a positive integer on `GET /users/list` |
+| `INVALID_PAGINATION` | 400 | `page`/`limit`/`per_page` invalid on `GET /users/list`, `/admin/users` |
+| `INVALID_SORT_FIELD` / `INVALID_SORT_DIR` | 400 | `sort` field / direction not allowed (users and admin lists) |
+| `TOO_MANY_FILTERS` / `INVALID_FILTER_FIELD` / `DUPLICATE_FILTER_FIELD` / `INVALID_FILTER_VALUE` | 400 | `filter` violations (users and admin lists) |
+| `INVALID_SEARCH` | 400 | `search` empty, blank or > 64 chars |
+| `INVALID_MULTIPART` / `NO_FILE` / `EMPTY_FILE` | 400 | file upload body problems |
+| `INVALID_JWT_FORMAT` | 400 | `/jwt/decode`: the value is not a JWT |
+| `INVALID_DELAY` / `INVALID_TIMEOUT` / `INVALID_SEED` / `SEED_REQUIRED` / `INVALID_FAIL_RATE` / `INVALID_FAIL_STATUS` / `INVALID_COUNT` / `INVALID_INDEX` / `INVALID_REDIRECT_COUNT` / `TOO_MANY_REDIRECTS` / `INVALID_REDIRECT_TYPE` / `INVALID_STATUS_CODE` | 400 | `/chaos/*` parameter validation |
+| `INVALID_SIGNATURE` / `TOKEN_EXPIRED` / `WRONG_TOKEN_TYPE` | 401 | JWT checks (signature → expiry → type) |
+| `ADMIN_REQUIRED` | 403 | valid token without the admin role on `/admin/*` |
+| `INVALID_SEED_CODE` | 403 | `POST /users/create-admin` with a wrong / absent seed |
+| `USER_LOCKED_OUT` | 403 | `POST /store/login` as `locked_out_user` (right password) |
+| `FILE_NOT_FOUND` / `WEBHOOK_NOT_FOUND` / `EVENT_NOT_FOUND` / `REPORT_NOT_FOUND` / `UNKNOWN_BUG_ID` / `CHALLENGE_NOT_FOUND` | 404 | unknown (or not yours) |
+| `NO_OPEN_ATTEMPT` / `HINT_LEVEL_OUT_OF_ORDER` / `RESERVED_LOCAL_PART` | 409 | challenge attempt / hint order / magic mailbox name |
+| `PAYLOAD_TOO_LARGE` / `FILE_TOO_LARGE` | 413 | body over the endpoint's limit |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | upload extension or sniffed type not accepted |
+| `CORRUPTED_FILE` | 422 | upload content does not match its extension |
+| `UPGRADE_REQUIRED` | 426 | `/ws/echo` without a WebSocket handshake |
+| `TOO_MANY_INBOXES` | 429 | 20 active webhook inboxes per IP |
 | `MISSING_TOKEN` | 401 | `Authorization` header is absent |
 | `INVALID_TOKEN_FORMAT` | 401 | `Authorization` header present but not in `Bearer <token>` format |
 | `INVALID_TOKEN` | 401 | Token does not match the user's stored token or has been revoked |
-| `FORBIDDEN` | 403 | Valid token, but it belongs to a different user (PUT/PATCH/DELETE/logout) |
+| `FORBIDDEN` | 403 | Valid token, but not for this account: another user on PUT/PATCH/DELETE/logout, or an admin on a foreign id |
 | `INVALID_CREDENTIALS` | 401 | Wrong email or password on login |
 | `USER_NOT_FOUND` | 404 | No user found for the given ID, or ID is not a valid ObjectID |
 | `MAILBOX_NOT_FOUND` | 404 | No mailbox found for the given token (expired, deleted, or never existed) |

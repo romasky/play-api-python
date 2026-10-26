@@ -59,6 +59,15 @@ Feature: Delete User
     Then Get and check status code 200 from "existsRes"
 
   @Run @Negative @allure.label.story:Negative_Scenario
+  Scenario: Delete a non-existent id with a valid token returns 403 FORBIDDEN, not 404
+    Given Create minimal user and save response as "createRes"
+    And Extract "access_token" from "createRes" and save as "token"
+    And Generate fake mongo id and save as "fakeId"
+    When Delete user "fakeId" with token "token" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
+
+  @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Delete non-existent user returns 401 INVALID_TOKEN (no valid token)
     Given Generate fake mongo id and save as "fakeId"
     When Delete user "fakeId" with token "fake_token" and save response as "response"

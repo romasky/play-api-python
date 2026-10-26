@@ -276,23 +276,17 @@ Feature: Create User
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"
 
+  # Self-contained (it used to depend on a previous scenario through the global store, so it broke when run alone)
   @Run @Negative @allure.label.story:Negative_Scenario
-  Scenario: Create duplicate user returns 409
-    Given Generate email and save as "email_g"
+  Scenario: Create user with duplicate email returns 409
+    Given Generate email and save as "email"
     And Generate username and save as "username"
     And Generate password and save as "password"
     And Generate first name and save as "firstName"
     And Generate last name and save as "lastName"
     When Create user with body and save response as "firstResponse"
     Then Get and check status code 201 from "firstResponse"
-
-  @Run @Negative @allure.label.story:Negative_Scenario
-  Scenario: Create user with duplicate email returns 409
-    Given Save context value "email_g" as "email"
-    And Generate username and save as "username"
-    And Generate password and save as "password"
-    And Generate first name and save as "firstName"
-    And Generate last name and save as "lastName"
+    Given Generate username and save as "username"
     When Create user with body and save response as "response"
     Then Get and check status code 409 from "response"
     And Assert error code is "DUPLICATE_USER" in response "response"

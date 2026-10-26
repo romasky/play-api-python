@@ -94,3 +94,49 @@ Feature: Update User
     When Update user "userId" with token "token" and save response as "response"
     Then Get and check status code 401 from "response"
     And Assert error code is "INVALID_TOKEN" in response "response"
+
+  # ─────────────────── CROSS-ACCOUNT (Feature 17: 401 = credential refused, 403 = credential accepted, not permitted) ───────────────────
+
+  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
+  Scenario: Update with another user token returns 403 FORBIDDEN
+    Given Create minimal user and save response as "userARes"
+    And Extract "id" from "userARes" and save as "userAId"
+    And Create minimal user and save response as "userBRes"
+    And Extract "access_token" from "userBRes" and save as "userBToken"
+    And Generate email and save as "email"
+    And Generate username and save as "username"
+    And Generate first name and save as "firstName"
+    And Generate last name and save as "lastName"
+    When Update user "userAId" with token "userBToken" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
+    And Assert field "error.message" equals "You can only modify your own account" in response "response"
+
+  @Run @Negative @allure.label.story:Negative_Scenario
+  Scenario: Ownership is checked before body validation — invalid body with another user token returns 403
+    Given Create minimal user and save response as "userARes"
+    And Extract "id" from "userARes" and save as "userAId"
+    And Create minimal user and save response as "userBRes"
+    And Extract "access_token" from "userBRes" and save as "userBToken"
+    When Update user "userAId" with raw body "{}" token "userBToken" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
+
+  @Run @Negative @allure.label.story:Negative_Scenario
+  Scenario: Update a non-existent id with a valid token returns 403 FORBIDDEN, not 404
+    Given Create minimal user and save response as "createRes"
+    And Extract "access_token" from "createRes" and save as "token"
+    And Generate fake mongo id and save as "fakeId"
+    When Update user "fakeId" with raw body "{\"email\":\"test@play-qa.com\",\"username\":\"testuser\",\"profile\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}}" token "token" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
+
+  @Run @Negative @allure.label.story:Negative_Scenario
+  Scenario: An admin token has no write override on another account
+    Given Create minimal user and save response as "userARes"
+    And Extract "id" from "userARes" and save as "userAId"
+    And Create admin user and save response as "adminRes"
+    And Extract "access_token" from "adminRes" and save as "adminToken"
+    When Update user "userAId" with raw body "{\"email\":\"test@play-qa.com\",\"username\":\"testuser\",\"profile\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}}" token "adminToken" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"

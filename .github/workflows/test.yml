@@ -19,45 +19,116 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  MARKERS: ${{ github.event.inputs.markers || 'Run and not Ignore and not Bug and not NotImplemented' }}
+  BASE_URL: ${{ vars.BASE_URL || 'https://www.play-qa.com' }}
+
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: astral-sh/setup-uv@v10.0.1  # setup-uv publishes no floating major tag past v7 — pin the exact release
         with:
           enable-cache: true
-
       - run: uv sync --frozen
-
       - name: Lint (ruff) + type-check (mypy) + offline step coverage
         run: |
           uv run ruff check .
           uv run ruff format --check .
           uv run mypy
           uv run python tools/check_steps.py
-
-      # Allure 3 CLI is a pure-JS npm package — Node is only needed for report generation
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-
-      - name: Run tests
+      - name: Every Allure epic is in the test matrix (a missing one would silently drop its scenarios)
         run: |
-          MARKERS="${{ github.event.inputs.markers || 'Run and not Ignore and not Bug and not NotImplemented' }}"
-          BASE_URL="${{ vars.BASE_URL || 'https://www.play-qa.com' }}"
-          BASE_URL=$BASE_URL uv run pytest -m "$MARKERS"
+          for epic in $(grep -rho 'allure.label.epic:[A-Za-z_]*' features | sort -u | cut -d: -f2); do
+            grep -qE -- "--epic $epic( |$)" .github/workflows/test.yml || { echo "epic $epic is not in the test matrix"; exit 1; }
+          done
 
-      - name: Generate Allure report
-        if: always()
-        run: npx --yes allure@3 generate allure-results -o allure-report
+  # The live Swagger vs the committed docs/openapi.json snapshot. Does not block the tests (they still tell
+  # what broke), but fails the workflow so a spec change is noticed — then update features + snapshot.
+  spec-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run python tools/spec_drift.py
 
+  # One job per epic group: every runner has its own IP, hence its own server-side rate-limit buckets
+  # (the suite paces per endpoint, so wall time is dominated by /login, /jwt/login, uploads and inboxes).
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: users
+            epics: --epic User_Lifecycle
+          - group: auth
+            epics: --epic Authentication
+          - group: admin-challenges-system
+            epics: --epic Administration --epic Challenges --epic System
+          - group: files
+            epics: --epic File_Storage
+          - group: webhooks
+            epics: --epic Webhooks
+          - group: mail-bugs-chaos
+            epics: --epic Mail_Service --epic Bug_Hunting --epic Chaos_Engineering
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Run tests (${{ matrix.group }})
+        # exit code 5 = "no tests collected" — a custom marker expression may select nothing in one group
+        run: uv run pytest -m "$MARKERS" ${{ matrix.epics }} || [ $? -eq 5 ]
       - name: Upload allure-results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: allure-results-${{ github.run_number }}
+          name: allure-results-${{ matrix.group }}-${{ github.run_attempt }}
+          path: allure-results
+          retention-days: 30
+
+  report:
+    needs: test
+    if: always() && needs.test.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7  # brings the committed allure-results/categories.json
+      - uses: actions/download-artifact@v7
+        with:
+          # every attempt of every group: after "Re-run failed jobs" the groups that passed keep their attempt-1
+          # artifact; result files have unique names, so a re-run group simply shows up as a retry in Allure
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Spec coverage (every Swagger operation called at least once)
+        if: env.MARKERS == 'Run and not Ignore and not Bug and not NotImplemented'
+        run: uv run python tools/spec_coverage.py --min 100
+
+      # Allure 3 CLI is a pure-JS npm package — Node is only needed for report generation
+      - uses: actions/setup-node@v7
+        if: always()
+        with:
+          node-version: '22'
+      - name: Generate Allure report
+        if: always()
+        run: npx --yes allure@3 generate allure-results -o allure-report
+
+      - name: Upload merged allure-results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-merged-${{ github.run_number }}-${{ github.run_attempt }}  # outside the allure-results-* pattern
           path: allure-results
           retention-days: 30
 

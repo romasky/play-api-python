@@ -79,3 +79,17 @@ Feature: Logout
     When Logout user "fakeId" with token "fake_token" and save response as "response"
     Then Get and check status code 401 from "response"
     And Assert error code is "INVALID_TOKEN" in response "response"
+
+  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
+  Scenario: Logout another user with a valid foreign token returns 403 and the target token keeps working
+    Given Create minimal user and save response as "userARes"
+    And Extract "id" from "userARes" and save as "userAId"
+    And Extract "access_token" from "userARes" and save as "userAToken"
+    And Create minimal user and save response as "userBRes"
+    And Extract "access_token" from "userBRes" and save as "userBToken"
+    When Logout user "userAId" with token "userBToken" and save response as "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
+    And Generate username and save as "newUsername"
+    When Patch user "userAId" with field "username" value "newUsername" token "userAToken" and save response as "patchRes"
+    Then Get and check status code 200 from "patchRes"

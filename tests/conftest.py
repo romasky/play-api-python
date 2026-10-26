@@ -1,9 +1,10 @@
-"""pytest-bdd wiring: step modules, scenario context fixtures, tag → Allure label hook,
-and rate-limit pacing (port of the Before hooks in src/steps/accountsSteps.js)."""
+"""pytest-bdd wiring: step modules, scenario context fixtures (with teardown), tag → Allure label hook,
+and `--epic` selection for the CI matrix. Rate-limit pacing is per endpoint, in `play_api.pacing`."""
 
 from __future__ import annotations
 
-import time
+import warnings
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -14,10 +15,17 @@ from play_api.context import ScenarioContext
 pytest_plugins = [
     "tests.steps.common_steps",
     "tests.steps.accounts_steps",
+    "tests.steps.admin_steps",
+    "tests.steps.auth_steps",
     "tests.steps.mail_steps",
-    "tests.steps.health_steps",
-    "tests.steps.basic_auth_steps",
-    "tests.steps.options_steps",
+    "tests.steps.files_steps",
+    "tests.steps.webhooks_steps",
+    "tests.steps.bug_reports_steps",
+    "tests.steps.buggy_steps",
+    "tests.steps.chaos_steps",
+    "tests.steps.challenges_steps",
+    "tests.steps.system_steps",
+    "tests.steps.realtime_steps",
 ]
 
 
@@ -31,9 +39,12 @@ def global_ctx() -> dict[str, Any]:
 
 
 @pytest.fixture
-def ctx(global_ctx: dict[str, Any]) -> ScenarioContext:
-    """Per-scenario context (local store) layered over the global one."""
-    return ScenarioContext(global_ctx)
+def ctx(global_ctx: dict[str, Any]) -> Iterator[ScenarioContext]:
+    """Per-scenario context (local store) layered over the global one; runs `ctx.defer` actions after."""
+    context = ScenarioContext(global_ctx)
+    yield context
+    for error in context.run_cleanups():
+        warnings.warn(f"scenario cleanup failed: {error!r}", stacklevel=1)
 
 
 # ─── Gherkin tags → pytest markers / Allure labels ─────────────────────────
@@ -54,24 +65,26 @@ def pytest_bdd_apply_tag(tag: str, function):
     return None  # default: pytest.mark.<tag>
 
 
-# ─── Rate-limit pacing (server enforces per-IP limits; pace, never retry) ───
-#
-# JS: Before({tags:'@allure.label.suite:User_Management'}) → sleep 2 s
-#     Before({tags:'@allure.label.subSuite:Login'})        → sleep 13 s  (5 login/min)
+def _labels(node: pytest.Item, label_type: str) -> set[str]:
+    return {m.args[0] for m in node.iter_markers("allure_label") if m.kwargs.get("label_type") == label_type and m.args}
 
 
-def _labels(request, label_type: str) -> set[str]:
-    return {
-        m.args[0]
-        for m in request.node.iter_markers("allure_label")
-        if m.kwargs.get("label_type") == label_type and m.args
-    }
+# ─── --epic: run one Allure epic (CI matrix: one runner = one IP = its own rate-limit buckets) ───
 
 
-@pytest.fixture(autouse=True)
-def _rate_limit_pacing(request):
-    if "Login" in _labels(request, "subSuite"):
-        time.sleep(13)
-    elif "User_Management" in _labels(request, "suite"):
-        time.sleep(2)
-    yield
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--epic", action="append", default=[], help="only scenarios whose Allure epic is one of these (repeatable)"
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    epics = set(config.getoption("--epic"))
+    if not epics:
+        return
+    selected: list[pytest.Item] = []
+    deselected: list[pytest.Item] = []
+    for item in items:
+        (selected if _labels(item, "epic") & epics else deselected).append(item)
+    config.hook.pytest_deselected(items=deselected)
+    items[:] = selected

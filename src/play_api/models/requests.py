@@ -13,24 +13,24 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class _Body(BaseModel):
+class Body(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     def to_body(self) -> dict[str, Any]:
         return self.model_dump(by_alias=True, exclude_none=True)
 
 
-class Coordinates(_Body):
+class Coordinates(Body):
     latitude: float | None = None
     longitude: float | None = None
 
 
-class Salary(_Body):
+class Salary(Body):
     amount: float | None = None
     currency: str | None = None
 
 
-class ProfileReq(_Body):
+class ProfileReq(Body):
     first_name: str | None = None
     last_name: str | None = None
     middle_name: str | None = None
@@ -41,7 +41,7 @@ class ProfileReq(_Body):
     avatar_url: str | None = None
 
 
-class ContactsReq(_Body):
+class ContactsReq(Body):
     phone: str | None = None
     telegram: str | None = None
     whatsapp: str | None = None
@@ -50,7 +50,7 @@ class ContactsReq(_Body):
     website: str | None = None
 
 
-class AddressReq(_Body):
+class AddressReq(Body):
     country: str | None = None
     state: str | None = None
     city: str | None = None
@@ -61,7 +61,7 @@ class AddressReq(_Body):
     coordinates: Coordinates | None = None
 
 
-class EmploymentReq(_Body):
+class EmploymentReq(Body):
     status: str | None = None
     company: str | None = None
     position: str | None = None
@@ -70,7 +70,7 @@ class EmploymentReq(_Body):
     salary: Salary | None = None
 
 
-class SettingsReq(_Body):
+class SettingsReq(Body):
     language: str | None = None
     timezone: str | None = None
     theme: str | None = None
@@ -79,7 +79,7 @@ class SettingsReq(_Body):
     private_profile: bool | None = None
 
 
-class CreateUserReq(_Body):
+class CreateUserReq(Body):
     """POST /users/create, PUT /users/update/:id (no password) and PATCH /users/patch/:id (any subset)."""
 
     email: str | None = None
@@ -92,18 +92,65 @@ class CreateUserReq(_Body):
     settings: SettingsReq | None = None
 
 
-class LoginReq(_Body):
+class CreateAdminReq(CreateUserReq):
+    """POST /users/create-admin — the create body plus the seed code (≤ 128 chars)."""
+
+    seed_code: str | None = None
+
+
+class SetRoleReq(Body):
+    role: str
+
+
+class LoginReq(Body):
     email: str
     password: str
 
 
-class CreateMailboxReq(_Body):
+class JwtLoginReq(Body):
+    email: str
+    password: str
+    access_ttl_seconds: int | None = None  # 1..900
+
+
+class StoreLoginReq(Body):
+    username: str
+    password: str
+
+
+class JwtRefreshReq(Body):
+    refresh_token: str
+
+
+class JwtDecodeReq(Body):
+    token: str
+
+
+class RevealHintReq(Body):
+    level: int  # 1..3, in order
+
+
+class CartItem(Body):
+    price: float
+    qty: int
+
+
+class CartReq(Body):
+    items: list[CartItem]
+
+
+class CreateMailboxReq(Body):
     domain: str | None = None
     local_part: str | None = None
 
 
-class SendMessageReq(_Body):
+class SendToReq(Body):
+    to: str
+    subject: str | None = None
+    body: str | None = None
+
+
+class SendMessageReq(Body):
     from_: str = Field(alias="from")
     subject: str
     body: str
-    html_body: str | None = None
