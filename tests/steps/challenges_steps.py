@@ -6,26 +6,32 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import httpx2 as httpx
-from pytest_bdd import parsers, when
+from pytest_bdd import parsers, step, when
 
 from play_api.api import auth
 from play_api.api.client import Headers
+from play_api.models.requests import RevealHintReq
 from play_api.services import challenges
 from play_api.utils.gherkin import query_pairs, raw_json
-from tests.steps.parsing import quoted
+from play_api.utils.json_path import get_path
+from tests.steps.support import bearer, quoted, raw_header, route_call
 
-# Auth-matrix outlines address the protected routes by name; auth is checked before the challenge id.
-_ROUTES: dict[str, Callable[[str, Headers], httpx.Response]] = {
-    "progress": lambda _cid, headers: challenges.progress(headers),
-    "start": lambda cid, headers: challenges.start(cid, headers),
-    "verify": lambda cid, headers: challenges.verify(cid, headers),
-    "reveal": lambda cid, headers: challenges.reveal(cid, {"level": 1}, headers),
+_SANDBOX_KEYS = {
+    "sandboxId": "user_id",
+    "sandboxToken": "access_token",
+    "sandboxEmail": "email",
+    "sandboxPassword": "password",
 }
 
 
-def _route(name: str) -> Callable[[str, Headers], httpx.Response]:
-    assert name in _ROUTES, f"unknown challenge route '{name}', expected one of {sorted(_ROUTES)}"
-    return _ROUTES[name]
+def _routes(challenge_id: str) -> dict[str, Callable[[Headers], httpx.Response]]:
+    """The protected routes by name; auth is checked before the challenge id, so any id exercises it."""
+    return {
+        "progress": challenges.progress,
+        "start": lambda headers: challenges.start(challenge_id, headers),
+        "verify": lambda headers: challenges.verify(challenge_id, headers),
+        "reveal": lambda headers: challenges.reveal(challenge_id, RevealHintReq(level=1), headers),
+    }
 
 
 @when(quoted('List challenges with query "{query}" and save response as "{var}"'))
@@ -40,12 +46,12 @@ def get_hints(ctx, challenge_id, var):
 
 @when(quoted('Get challenge progress with token "{token_key}" and save response as "{var}"'))
 def get_progress(ctx, token_key, var):
-    ctx.save(var, challenges.progress(auth.bearer(ctx.str(token_key))))
+    ctx.save(var, challenges.progress(bearer(ctx, token_key)))
 
 
 @when(quoted('Send challenge "{route}" request for "{challenge_id}" with no auth token and save response as "{var}"'))
 def challenge_no_auth(ctx, route, challenge_id, var):
-    ctx.save(var, _route(route)(challenge_id, auth.none()))
+    ctx.save(var, route_call(_routes(challenge_id), route)(auth.none()))
 
 
 @when(
@@ -54,24 +60,33 @@ def challenge_no_auth(ctx, route, challenge_id, var):
     )
 )
 def challenge_raw_auth(ctx, route, challenge_id, header, var):
-    ctx.save(var, _route(route)(challenge_id, auth.raw(header)))
+    ctx.save(var, route_call(_routes(challenge_id), route)(raw_header(ctx, header)))
 
 
 @when(quoted('Start challenge "{challenge_id}" with token "{token_key}" and save response as "{var}"'))
 def start_challenge(ctx, challenge_id, token_key, var):
-    ctx.save(var, challenges.start(challenge_id, auth.bearer(ctx.str(token_key))))
+    ctx.save(var, challenges.start(challenge_id, bearer(ctx, token_key)))
 
 
 @when(
     quoted('Start challenge "{challenge_id}" with query "{query}" and token "{token_key}" and save response as "{var}"')
 )
 def start_challenge_query(ctx, challenge_id, query, token_key, var):
-    ctx.save(var, challenges.start(challenge_id, auth.bearer(ctx.str(token_key)), query_pairs(query)))
+    ctx.save(var, challenges.start(challenge_id, bearer(ctx, token_key), query_pairs(query)))
+
+
+@step(quoted('Extract the sandbox from "{var}"'))
+def extract_sandbox(ctx, var):
+    """sandboxId / sandboxToken / sandboxEmail / sandboxPassword from a fresh (201) start."""
+    target = get_path(ctx.body(var), "target")
+    assert target and target.get("access_token"), f"no fresh sandbox in '{var}': {ctx.body(var)}"
+    for key, field in _SANDBOX_KEYS.items():
+        ctx.save(key, target[field])
 
 
 @when(quoted('Verify challenge "{challenge_id}" with token "{token_key}" and save response as "{var}"'))
 def verify_challenge(ctx, challenge_id, token_key, var):
-    ctx.save(var, challenges.verify(challenge_id, auth.bearer(ctx.str(token_key))))
+    ctx.save(var, challenges.verify(challenge_id, bearer(ctx, token_key)))
 
 
 @when(
@@ -80,7 +95,7 @@ def verify_challenge(ctx, challenge_id, token_key, var):
     )
 )
 def verify_challenge_raw(ctx, challenge_id, raw, token_key, var):
-    ctx.save(var, challenges.verify(challenge_id, auth.bearer(ctx.str(token_key)), raw_json(raw)))
+    ctx.save(var, challenges.verify(challenge_id, bearer(ctx, token_key), raw_json(ctx.render(raw))))
 
 
 @when(
@@ -89,7 +104,7 @@ def verify_challenge_raw(ctx, challenge_id, raw, token_key, var):
     )
 )
 def reveal_hint(ctx, level, challenge_id, token_key, var):
-    ctx.save(var, challenges.reveal(challenge_id, {"level": level}, auth.bearer(ctx.str(token_key))))
+    ctx.save(var, challenges.reveal(challenge_id, RevealHintReq(level=level), bearer(ctx, token_key)))
 
 
 @when(
@@ -98,4 +113,4 @@ def reveal_hint(ctx, level, challenge_id, token_key, var):
     )
 )
 def reveal_hint_raw(ctx, challenge_id, raw, token_key, var):
-    ctx.save(var, challenges.reveal(challenge_id, raw_json(raw), auth.bearer(ctx.str(token_key))))
+    ctx.save(var, challenges.reveal(challenge_id, raw_json(ctx.render(raw)), bearer(ctx, token_key)))

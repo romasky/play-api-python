@@ -17,42 +17,25 @@ Feature: Token Security
 
   # ─────────────────── EMPTY BEARER TOKEN ───────────────────
 
+  # "Bearer " (trailing space) lives in the step text — Gherkin would trim it in an Examples cell
   @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: PATCH with empty Bearer token is rejected 401 INVALID_TOKEN_FORMAT
+  Scenario Outline: <verb> with empty Bearer token is rejected 401 INVALID_TOKEN_FORMAT
     Given Create minimal user and save response as "createRes"
     And Extract "id" from "createRes" and save as "userId"
-    When Patch user "userId" with raw auth header "Bearer " and save response as "response"
+    When <action> user "userId" with raw auth header "Bearer " and save response as "response"
     Then Get and check status code 401 from "response"
     And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
-
-  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: PUT with empty Bearer token is rejected 401 INVALID_TOKEN_FORMAT
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    When Update user "userId" with raw auth header "Bearer " and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
-
-  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: DELETE with empty Bearer token is rejected 401 INVALID_TOKEN_FORMAT
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    When Delete user "userId" with raw auth header "Bearer " and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
-
-  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: Logout with empty Bearer token is rejected 401 INVALID_TOKEN_FORMAT
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    When Logout user "userId" with raw auth header "Bearer " and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
+    Examples:
+      | verb   | action |
+      | PATCH  | Patch  |
+      | PUT    | Update |
+      | DELETE | Delete |
+      | Logout | Logout |
 
   # ─────────────────── IDOR: logged-out attacker targets ANOTHER account ───────────────────
 
   @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: Logged-out user with empty Bearer token cannot DELETE another account
+  Scenario Outline: Logged-out user with empty Bearer token cannot <verb> another account
     Given Create minimal user and save response as "victimRes"
     And Extract "id" from "victimRes" and save as "victimId"
     And Create minimal user and save response as "attackerRes"
@@ -60,22 +43,13 @@ Feature: Token Security
     And Extract "access_token" from "attackerRes" and save as "attackerToken"
     When Logout user "attackerId" with token "attackerToken" and save response as "logoutRes"
     Then Get and check status code 200 from "logoutRes"
-    When Delete user "victimId" with raw auth header "Bearer " and save response as "response"
+    When <action> user "victimId" with raw auth header "Bearer " and save response as "response"
     Then Get and check status code 401 from "response"
     And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
-
-  @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: Logged-out user with empty Bearer token cannot PATCH another account
-    Given Create minimal user and save response as "victimRes"
-    And Extract "id" from "victimRes" and save as "victimId"
-    And Create minimal user and save response as "attackerRes"
-    And Extract "id" from "attackerRes" and save as "attackerId"
-    And Extract "access_token" from "attackerRes" and save as "attackerToken"
-    When Logout user "attackerId" with token "attackerToken" and save response as "logoutRes"
-    Then Get and check status code 200 from "logoutRes"
-    When Patch user "victimId" with raw auth header "Bearer " and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
+    Examples:
+      | verb   | action |
+      | DELETE | Delete |
+      | PATCH  | Patch  |
 
   # ─────────────────── MALFORMED AUTHORIZATION HEADERS ───────────────────
 

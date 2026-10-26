@@ -1,28 +1,25 @@
-"""/chaos/* steps. A client-side timeout is an OUTCOME here, not an error: the step saves the exception
-under the response key and `Assert request "…" timed out` checks it."""
+"""/chaos/* steps. A client-side timeout is an OUTCOME here, not an error: `timing.timed` keeps the response
+or the exception under the response key (and the wall time under `<key>Seconds`)."""
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 
 import httpx2 as httpx
 from pytest_bdd import parsers, step, then, when
 
+from play_api.assertions import assert_cloudflare_page, assert_plain_text, assert_plan_replays
 from play_api.services import chaos
+from play_api.timing import timed
 from play_api.utils.gherkin import query_pairs, unescape_quotes
 from play_api.utils.json_path import get_path
-from tests.steps.parsing import quoted
+from tests.steps.support import quoted
 
 
 def _timed(ctx, var: str, call: Callable[[], httpx.Response]) -> None:
-    """Save the response — or the TimeoutException — and the wall time under `<var>Seconds`."""
-    started = time.monotonic()
-    try:
-        ctx.save(var, call())
-    except httpx.TimeoutException as exc:
-        ctx.save(var, exc)
-    ctx.save(f"{var}Seconds", time.monotonic() - started)
+    outcome = timed(call)
+    ctx.save(var, outcome.result)
+    ctx.save(f"{var}Seconds", outcome.seconds)
 
 
 # ─── Cache (conditional requests) ──────────────────────────────────────────
@@ -82,13 +79,13 @@ def get_timeout_with_timeout(ctx, query, limit, var):
 
 @then(parsers.parse('Assert request "{var}" timed out'))
 def assert_timed_out(ctx, var):
-    outcome = ctx.get(var, fail_if_missing=True)
+    outcome = ctx.require(var)
     assert isinstance(outcome, httpx.TimeoutException), f"Expected a client timeout, got {outcome!r}"
 
 
 @then(parsers.parse('Assert request "{var}" took between {low:d} and {high:d} seconds'))
 def assert_took_between(ctx, var, low, high):
-    seconds = ctx.get(f"{var}Seconds", fail_if_missing=True)
+    seconds = ctx.require(f"{var}Seconds")
     assert low <= seconds <= high, f"'{var}' took {seconds:.2f} s, expected {low}..{high} s"
 
 
@@ -149,17 +146,8 @@ def assert_plan_statuses(ctx, statuses, var):
 
 @when(quoted('Retry chaos flaky steps of plan "{plan_var}" with query "{query}" until success and save as "{key}"'))
 def retry_until_success(ctx, plan_var, query, key):
-    """The client-side retry loop the sequence exists for: each attempt must answer its PLANNED status."""
     plan = get_path(ctx.body(plan_var), "steps")
-    for attempt, planned in enumerate(plan, start=1):
-        response = chaos.flaky_step(str(planned["index"]), query_pairs(query))
-        assert response.status_code == planned["status"], (
-            f"step {planned['index']} answered {response.status_code}, the plan says {planned['status']}"
-        )
-        if response.status_code == 200:
-            ctx.save(key, attempt)
-            return
-    raise AssertionError(f"no successful step in the plan: {plan}")
+    ctx.save(key, assert_plan_replays(plan, lambda index: chaos.flaky_step(index, query_pairs(query))))
 
 
 # ─── Gzip ──────────────────────────────────────────────────────────────────
@@ -172,7 +160,7 @@ def get_gzip(ctx, encoding, var):
 
 @when(quoted('Read the raw chaos gzip body with Accept-Encoding "{encoding}" and save its first bytes as "{key}"'))
 def read_raw_gzip(ctx, encoding, key):
-    ctx.save(key, chaos.gzip_raw_prefix({"Accept-Encoding": encoding}).hex())
+    ctx.save(key, chaos.gzip_magic({"Accept-Encoding": encoding}).hex())
 
 
 # ─── Redirect ──────────────────────────────────────────────────────────────
@@ -192,6 +180,16 @@ def redirect_follow(ctx, method, hops, query, body, var):
     ctx.save(var, chaos.redirect(method, hops, params=query_pairs(query), content=body or None, follow=True))
 
 
+@when(quoted('Send "{method}" directly to chaos redirect done and save response as "{var}"'))
+def redirect_done_direct(ctx, method, var):
+    ctx.save(var, chaos.redirect_done(method))
+
+
+@when(parsers.parse('Post directly to chaos redirect done a body of {size:d} bytes and save response as "{var}"'))
+def redirect_done_sized(ctx, size, var):
+    ctx.save(var, chaos.redirect_done("POST", "a" * size))
+
+
 @then(parsers.parse('Assert response "{var}" followed {hops:d} redirects'))
 def assert_redirect_count(ctx, var, hops):
     history = ctx.response(var).history
@@ -207,17 +205,10 @@ def get_status(ctx, code, var):
 
 
 @then(quoted('Assert response "{var}" is plain text "{text}"'))
-def assert_plain_text(ctx, var, text):
-    response = ctx.response(var)
-    assert response.headers.get("content-type", "").startswith("text/"), response.headers.get("content-type")
-    assert response.text.strip() == text, f"body {response.text!r}, expected {text!r}"
+def assert_response_plain_text(ctx, var, text):
+    assert_plain_text(ctx.response(var), text)
 
 
 @then(parsers.parse('Assert response "{var}" is a Cloudflare error page for status {code:d}'))
-def assert_cloudflare_page(ctx, var, code):
-    """Cloudflare discards the origin body of 502/504/52x: plain text, or an HTML page when the client accepts
-    gzip (httpx always does) — either way NOT the documented JSON."""
-    response = ctx.response(var)
-    assert response.headers.get("content-type", "").startswith("text/"), response.headers.get("content-type")
-    assert str(code) in response.text, f"Cloudflare page does not mention {code}: {response.text[:200]!r}"
-    assert "status_code" not in response.text, "origin JSON body leaked through Cloudflare"
+def assert_response_cloudflare_page(ctx, var, code):
+    assert_cloudflare_page(ctx.response(var), code)

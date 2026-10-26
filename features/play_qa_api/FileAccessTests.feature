@@ -43,8 +43,7 @@ Feature: File Access (list mine, public metadata, download, delete)
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: Metadata is public, ignores a bogus token and never discloses the owner
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When Upload sample "note.txt" with token "token" and save response as "uploadRes"
     And Extract "file_id" from "uploadRes" and save as "fileId"
     And Get file "fileId" metadata with raw auth header "Bearer usr_bogus" and save response as "response"
@@ -54,10 +53,8 @@ Feature: File Access (list mine, public metadata, download, delete)
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: My files lists only my token uploads — not anonymous ones, not to other users
-    Given Create minimal user and save response as "userARes"
-    And Extract "access_token" from "userARes" and save as "tokenA"
-    And Create minimal user and save response as "userBRes"
-    And Extract "access_token" from "userBRes" and save as "tokenB"
+    Given a user with token "tokenA"
+    And a user with token "tokenB"
     When Upload sample "note.txt" with token "tokenA" and save response as "ownRes"
     And Upload sample "data.csv" anonymously and save response as "anonRes"
     And List my files with token "tokenA" and save response as "listA"
@@ -70,10 +67,8 @@ Feature: File Access (list mine, public metadata, download, delete)
 
   @Run @Flow @allure.label.severity:critical @allure.label.story:End_to_End_Flow
   Scenario: Only the owner can delete a token-owned file; afterwards it is gone everywhere
-    Given Create minimal user and save response as "userARes"
-    And Extract "access_token" from "userARes" and save as "tokenA"
-    And Create minimal user and save response as "userBRes"
-    And Extract "access_token" from "userBRes" and save as "tokenB"
+    Given a user with token "tokenA"
+    And a user with token "tokenB"
     When Upload sample "note.txt" with token "tokenA" and save response as "uploadRes"
     And Extract "file_id" from "uploadRes" and save as "fileId"
     And Delete file "fileId" with token "tokenB" and save response as "otherRes"
@@ -97,8 +92,7 @@ Feature: File Access (list mine, public metadata, download, delete)
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: Anyone can delete an anonymous file
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When Upload sample "note.txt" anonymously and save response as "uploadRes"
     And Extract "file_id" from "uploadRes" and save as "fileId"
     And Delete file "fileId" with token "token" and save response as "response"
@@ -114,8 +108,7 @@ Feature: File Access (list mine, public metadata, download, delete)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: My files with <query> returns 400 VALIDATION_ERROR
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When List my files with query "<query>" and token "token" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"

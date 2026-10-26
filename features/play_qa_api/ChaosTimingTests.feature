@@ -38,6 +38,7 @@ Feature: Chaos — delays and timeouts (GET /chaos/delay/{seconds}, GET /chaos/t
     Then Assert request "response" timed out
     And Assert request "response" took between 1 and 3 seconds
 
+  # @Positive on purpose: answering 504 after the hold IS the endpoint's success behaviour
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: The gateway timeout holds, then answers 504 (with a Cloudflare page, not the documented JSON)
     When Get chaos timeout with query "after=1" and save response as "response"

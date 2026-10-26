@@ -1,19 +1,22 @@
 # play-api-python — agent entry point
 
 **Read this file first.** It is the single source of context for continuing this project.
-Everything an agent needs — goal, stack decisions (and why), conventions, the porting plan with
-checkboxes, live-API quirks and known pitfalls — is here. Update the checkboxes as you go.
+Everything an agent needs — goal, stack decisions (and why), conventions, the plan with checkboxes,
+live-API quirks and known pitfalls — is here. Update the checkboxes as you go.
 
 ## 1. Mission
 
-Python port of **play-api-js** (`/Users/macbook/Documents/Storage/rs/projects/play-api-js`,
-https://github.com/romasky/play-api-js) — a BDD API test framework for https://www.play-qa.com.
-The JS project (itself a port of `play-api-java`) is the **reference implementation**: 181 scenarios
-in 18 feature files, all green against the live API as of 2026-08-31.
+BDD API test framework for https://www.play-qa.com — started as the Python port of **play-api-js**
+(`/Users/macbook/Documents/Storage/rs/projects/play-api-js`, https://github.com/romasky/play-api-js; 181 scenarios
+in 18 feature files, ported 1:1 and green 2026-09-01) and since 2026-10-26 extended to **the whole Swagger spec**
+(`https://play-qa.com/swagger/doc.json`, snapshot `docs/openapi.json`): **799 scenarios in 45 feature files,
+79/79 spec operations called** (`tools/spec_coverage.py`).
 
-**Definition of done for the port:** `uv run pytest` runs the *same 18 feature files* (copied verbatim
-into `features/play_qa_api/`) with the same expected statuses and `error.code`s, and produces an
-Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
+**The spec is the live API + Swagger, no longer the JS copy.** The 18 original feature files were edited where the
+API changed (403 FORBIDDEN, exact pagination codes) and gained scenarios; the other 27 files are new.
+
+**Definition of done:** the lint gate passes, `uv run pytest` is green against the live API, every Swagger
+operation is called at least once, and the Allure 3 report keeps the Epic → Suite → SubSuite → Story hierarchy.
 
 ## 2. Stack (decided 2026-09-01 after research — do not re-litigate without a reason)
 
@@ -21,9 +24,10 @@ Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
 |---|---|---|---|
 | Runner + BDD | **pytest + pytest-bdd** | pytest ≥8.3 / pytest-bdd 8.1.0 | `gherkin-official` parser (outlines, tags, datatables), pytest fixtures/markers/IDE; behave 1.3.3 was the alternative (closer to Cucumber, but its own runner and no fixtures) |
 | HTTP | **httpx2** (`import httpx2 as httpx`) | 2.12.0 | Same API as httpx, now maintained by Pydantic Services (original `httpx` stalled at 0.28.1, Dec 2024); never raises on 4xx/5xx; single `timeout` |
-| Models | **pydantic 2** | 2.13 | `model_dump(by_alias=True, exclude_none=True)` = JS `JSON.parse(JSON.stringify())`; typed response contracts (`responses.py`) — an upgrade over JS |
+| WebSocket | **websockets** (sync client) | 17.x | httpx cannot speak WebSocket — only `/ws/echo` uses it (`services/realtime.py`) |
+| Models | **pydantic 2** | 2.13 | `model_dump(by_alias=True, exclude_none=True)` = JS `JSON.parse(JSON.stringify())`; typed response contracts |
 | Config | **pydantic-settings** | 2.x | `.env` + env-var override, typed |
-| Reporting | **allure-pytest-bdd** + Allure 3 CLI (`npx allure@3`, "awesome" UI) | 2.16.0 / 3.x | Python adapter writes allure2-format JSON; the Allure 3 CLI already consumes that format in the JS project |
+| Reporting | **allure-pytest-bdd** + Allure 3 CLI (`npx allure@3`, "awesome" UI) | 2.16.0 / 3.x | Python adapter writes allure2-format JSON; the Allure 3 CLI consumes it |
 | Packaging | **uv** (`pyproject.toml` + `uv.lock`) | 0.12 | venv + lock + run in one tool; CI uses `astral-sh/setup-uv` |
 | Quality | **ruff** + **mypy** (strict, `pydantic.mypy` plugin) | 0.16 / 2.3 | CI gate before tests; config in `pyproject.toml` |
 | Python | **3.12** (`.python-version`) | — | pytest-bdd 8.1 needs ≥3.10 and is dropping 3.9 next |
@@ -37,121 +41,201 @@ Allure 3 report with the same Epic → Suite → SubSuite → Story hierarchy.
 - `.env` is git-ignored; copy `.env.example`. Defaults in `src/play_api/config.py` work without it.
 - Git remote uses the SSH alias `github.com-romasky` (plain `github.com` has no key for this account).
 - Node 22 is installed (`npx allure@3` works).
+- When chaining shell commands that end in `git commit`, never put a `;` after a gate command — a failing
+  lint then still commits (happened once on this branch; the commit was amended).
 
-## 4. Layout
+## 4. Layout — three layers: steps → services → client
 
 ```
-features/play_qa_api/*.feature   # copied 1:1 from play-api-js — the SPEC. Do not rephrase steps.
+features/play_qa_api/*.feature   # THE SPEC (45 files). Phrase new steps like the existing ones.
 src/play_api/
-  config.py                      # Settings (BASE_URL, REQUEST_TIMEOUT seconds)
-  context.py                     # ScenarioContext: save/get/opt/str/response/body, _g/_l scoping
-  api/paths.py                   # all endpoint paths
-  api/client.py                  # request() choke point: Allure sub-step + attachments; bearer_header()
-  models/requests.py             # pydantic builders: CreateUserReq/ProfileReq/…/LoginReq/CreateMailboxReq/SendMessageReq
-  models/responses.py            # pydantic contracts for every 2xx shape + `contract_for()` registry (auto-checked by client) + assert_* helpers
+  config.py                      # Settings: BASE_URL, REQUEST_TIMEOUT (s), ADMIN_SEED_CODE
+  context.py                     # ScenarioContext: save/get/require/opt/str/render/response/body, _g/_l scoping, defer()
+  pacing.py                      # per-ENDPOINT throttle (token-bucket refill intervals), called by client.request()/stream()
+  jwt_session.py                 # run-wide shared JWT session in the _g store (one rate-limited JWT login pair)
+  timing.py                      # timed(call) → Outcome(response | TimeoutException, seconds)
+  assertions.py                  # generic typed checks: ordering, every item, pages, Link, SSE, JWT claims, CF pages; as_text()
+  api/paths.py                   # ALL endpoint paths (+ API_DOCUMENTS name → path)
+  api/client.py                  # request(): the only HTTP choke point — Allure sub-step, attachments, pacing, 2xx contract;
+                                 # RawJson (verbatim body), ContractViolation (carries the response), Headers/Params types
+  api/auth.py                    # header builders: bearer / raw / none / basic
+  services/<domain>.py           # one module per API domain; plain values in, httpx.Response out (no ctx, no asserts);
+                                 # login.py = /login, /auth/basic, /store/login; realtime.py = SSE + WsSession
+  models/requests.py             # pydantic request bodies (`Body.to_body()`; the client serialises models itself)
+  models/factories.py            # bodies: minimal user / admin, user_from_context(ctx), bug-report variants, cart(spec)
+  models/responses/<domain>.py   # STRICT contracts + CONTRACTS_2XX rows per domain + domain assert_* helpers
   utils/json_path.py             # get_path / has_path (typed dotted-path checks; never substring matching)
-  utils/generator.py             # random data with the API's exact shapes
-  utils/gherkin.py               # raw_json(): unescapes \" in `… with raw body "{…}"` step args before json.loads
+  utils/generator.py             # random data with the API's exact shapes (+ unique_country for list isolation)
+  utils/gherkin.py               # raw_json(), unescape_quotes(), query_pairs()
+  utils/lookup.py                # choose(table, name, what) — the one "unknown X, expected one of …" lookup
+  utils/jwt_tools.py             # craft(kind, genuine): forged / malformed JWTs, stdlib only
+  utils/samples.py               # in-memory upload files (PNG, PDF, fake PNG, .exe, 5 MiB boundaries …)
+  utils/webhook_sign.py          # X-PlayQA-Signature (HMAC-SHA256, t=…,v1=…)
 tests/
-  conftest.py                    # pytest_plugins (step modules), ctx/global_ctx fixtures, pytest_bdd_apply_tag (@allure.label.* → allure_label), rate-limit pacing
-  test_features.py               # scenarios("play_qa_api") — binds every feature file
-  steps/{common,accounts,mail,health,basic_auth,options}_steps.py   # ← the porting work happens here
+  conftest.py                    # pytest_plugins (13 step modules), ctx fixture (runs ctx.defer cleanups), tag→allure_label, --epic
+  test_features.py               # scenarios("play_qa_api") — binds every feature file (recursive)
+  steps/support.py               # quoted() parser, bearer()/raw_header(), save_created() (cleanup-safe create), route_call()
+  steps/*_steps.py               # common, accounts, admin, auth (basic+JWT+store), mail, files, webhooks, bug_reports,
+                                 # buggy, chaos, challenges, system (health/options/docs/reCAPTCHA), realtime (SSE/WS)
 docs/API_REFERENCE.md            # API contract (error codes, validation rules) — ground truth for expectations
-tools/check_steps.py             # OFFLINE: every feature step ↔ exactly one step def (pytest --co does NOT check this)
+docs/openapi.json                # Swagger snapshot the expectations were written against (tools/spec_drift.py)
+tools/check_steps.py             # OFFLINE: step ↔ exactly one definition, every feature has an epic; lists unused definitions
+tools/spec_drift.py              # live Swagger vs snapshot: new / removed operations, changed response codes
+tools/spec_coverage.py           # which spec operations a run called (most specific template wins; reads allure-results)
+tools/_spec.py                   # shared snapshot loading / operation iteration
 allure-results/categories.json   # committed; never --clean-alluredir
-.github/workflows/test.yml       # uv + pytest → npx allure@3 generate → GitHub Pages (same layout as JS)
+.github/workflows/test.yml       # lint → test matrix (6 epic groups) → report (merge, coverage, Allure, Pages); spec-drift
 ```
 
-## 5. JS → Python mapping (how to port a step)
+## 5. How to add or change a step
 
-| play-api-js | play-api-python |
+| Need | Do this |
 |---|---|
-| `Given('Create minimal user and save response as {string}', async (varName) => …)` | `@given(parsers.parse('Create minimal user and save response as "{var}"'))` `def _(ctx, var): …` |
-| `{string}` / `{int}` | `"{name}"` / `{name:d}` inside `parsers.parse` |
-| `ctx.save / get / opt / str` | same names on the `ctx` fixture (`ScenarioContext`) |
-| `ctx.get(varName, true).data` | `ctx.body(var)`; the raw `httpx.Response` via `ctx.response(var)` |
-| `client.post(path, body, headers)` | `client.post(path, body, headers)` — body is a `dict` (`Model.to_body()`) |
-| `auth.bearer / raw / none` | same helper in `accounts_steps.py` (`auth.bearer(ctx, key)` needs `ctx`) |
-| `createUserReq({...})` strips undefined | `CreateUserReq(...).to_body()` (`exclude_none`) |
-| `errorResponse.assertCode(res, code)` | `responses.assert_error_code(ctx.body(var), code)` |
-| `getPath / hasPath` | `get_path / has_path` (arrays: `"messages.0.subject"`) |
-| `Before({tags: …})` sleeps | `_rate_limit_pacing` autouse fixture in `conftest.py` (reads allure_label markers) |
-| `@allure.label.epic:X` tags | translated by `pytest_bdd_apply_tag` → `pytest.mark.allure_label("X", label_type="epic")` |
-| `Then … (Cucumber And/Then interchangeable)` | pytest-bdd matches by text **and keyword** (`And` inherits the previous one). Assertions → `@then`, HTTP actions → `@when`/`@given`; data-setup steps that the features use after Given *and* When/Then (`Extract`, `Generate …`, `Save …`, `Get and check status code`) → keyword-agnostic `@step` |
+| A new endpoint | path in `api/paths.py` → function in `services/<domain>.py` → contract + `CONTRACTS_2XX` row in `models/responses/<domain>.py` (registered in `__init__`) → step → feature |
+| Step text with only quoted, quote-free args | `@when(quoted('Do "{x}" and save response as "{var}"'))` — `"{x}"` matches `[^"]*` (empty allowed), so sibling phrasings never overlap |
+| Step text with a raw JSON body | `parsers.parse(...)` + `raw_json(...)` (JSON carries `\"`, which `quoted()` cannot match). Invalid JSON on purpose comes back as `RawJson` and is sent verbatim |
+| Integer arg | `parsers.parse` with `{n:d}` |
+| Context values | `ctx.str(key)` → value, or the literal with `${key}` interpolated; `ctx.render("q=${k}")` for queries / raw bodies / raw headers; `ctx.require(key)` when a previous step must have saved it |
+| Query strings | `"limit=3&filter=a:1&filter=b:2&sort="` → `query_pairs(ctx.render(q))` keeps repeats and empty values |
+| Auth headers | `bearer(ctx, token_key)`, `raw_header(ctx, value)`, `auth.none()` (tests/steps/support.py) |
+| Created server-side state | `save_created(ctx, var, create, cleanup)` — registers the delete even when the 201 body breaks its contract; else `ctx.defer(...)` |
+| Setup a user / admin | `Given a user with token "t"` / `… with id "i" and token "t"` / `an admin with …` (new features); the original 18 keep `Create minimal user …` + `Extract` |
+| Rate-limited endpoint | add its bucket to `pacing._BUCKETS` (method, path regex, bucket name, refill seconds) |
+| Keywords | assertions `@then`, HTTP `@when`/`@given`; steps used after Given *and* When/Then → `@step` |
+| Run one area | `uv run pytest --epic Webhooks` (repeatable; Allure epic label) |
 
-All six step modules are fully ported (94 step definitions; `tools/check_steps.py` → 181 scenarios / 1082 steps, 0 missing, 0 ambiguous).
+The old JS → Python porting table (`{string}` → `"{x}"`, `ctx.get(v, true).data` → `ctx.body(v)`,
+`createUserReq` → `CreateUserReq(...).to_body()` …) still holds for the original 18 files.
 
-## 6. Conventions (inherited from the JS/Java projects — MUST follow)
+## 6. Conventions (MUST follow)
 
 - **Feature files are the spec.** Never change step phrasing to fit Python; change the step definition.
-  Scenario Outlines are counted per row (181 total). Tags: `@Run` required + `@Smoke/@Positive/@Negative/@Flow`
-  + `@allure.label.{epic,suite,subSuite,story,severity}`.
-- HTTP only through `play_api.api.client`; paths only from `play_api.api.paths`; bodies via `models/requests.py`
-  (`… with raw body "{…}"` steps are the only place raw JSON is allowed — for deliberately broken payloads).
-- **Every negative scenario asserts BOTH status and `error.code`** (exceptions with no envelope: `GET /auth/basic`, HEAD/GET `/users/exists/:id`).
-- Typed checks only: `get_path/has_path` or pydantic contracts. No `str(body)` / `in json.dumps(...)` substring checks.
-- New 2xx endpoint → add its contract **and** a `_CONTRACTS_2XX` entry in `responses.py`; `client.request()` raises `AssertionError` inside the HTTP step when a 2xx body violates it. Contracts list only documented, always-present fields (`extra="allow"`; optional ones `| None = None`).
-- `uv run ruff check . && uv run ruff format --check . && uv run mypy` must pass — CI runs them before pytest. Gherkin step strings longer than 120 chars get `# noqa: E501` (never wrap the phrase).
+  Tags: `@Run` required + `@Smoke/@Positive/@Negative/@Flow` + `@allure.label.{epic,suite,subSuite,story}`;
+  `@allure.label.severity:critical` only where it applies (the default is normal). A `@Positive` scenario may assert an
+  error status when that status IS the endpoint's behaviour (chaos) — say so in a comment.
+  Every new epic must be added to the CI matrix (the lint job fails otherwise).
+- HTTP only through `play_api.api.client` (via a service); paths only from `play_api.api.paths`; bodies via
+  `models/requests.py` / `models/factories.py` (`… with raw body "{…}"` steps are the only place raw JSON is allowed).
+- **Every negative scenario asserts BOTH status and `error.code`** (exceptions with no envelope: `GET /auth/basic`,
+  HEAD/GET `/users/exists/:id`, `/verify-recaptcha` `{success, error:<string>}`, unrouted methods `404 page not found`,
+  Cloudflare-replaced 502/504/52x pages).
+- Typed checks only: `get_path/has_path`, pydantic contracts or `play_api.assertions`. No substring checks on a dumped body.
+- New 2xx endpoint → contract **and** `CONTRACTS_2XX` row; `client.request()` raises `ContractViolation` inside the HTTP
+  step when a 2xx body violates it. Contracts are STRICT (`"900"` is not an int, `"true"` not a bool) and list only
+  always-present fields (`extra="allow"`; optional → `| None = None`; "always present but nullable" → `Field(...)`).
+- The lint gate (the CI `lint` job): `uv run ruff check . && uv run ruff format --check . && uv run mypy &&
+  uv run python tools/check_steps.py` + "every epic is in the test matrix" — all must pass.
+  Gherkin step strings longer than 120 chars get `# noqa: E501` (never wrap the phrase).
 - Context passthrough: unknown keys resolve to the literal. Don't create context keys that collide with
   literals used in assertions (bio → `profileBio`).
-- Rate limits are **paced, never retried** (2 s per User_Management scenario, 13 s per Login scenario).
-  `TokenSecurityTests` carries `suite:User_Management` on purpose to inherit the 2 s pacing.
-- Single-threaded (`ScenarioContext` global store) — do not add pytest-xdist.
-- Keep step modules thin; logic belongs in `src/play_api`. No dead exports (the JS project was cleaned of these — keep it that way).
+- Rate limits are **paced, never retried** — per endpoint in `play_api.pacing` (≥ refill interval between two calls
+  of the same bucket). No 429 scenarios: they would drain the shared per-IP buckets.
+- Shared data (users list ≈ 400 users from other clients): assert exact counts only inside a filter that isolates
+  your own data (`Generate unique country` + `filter=address.country:${country}`).
+- Single-threaded (`ScenarioContext` global store) — do not add pytest-xdist; parallelism = the CI matrix (one IP each).
+- Keep step modules thin; logic belongs in `src/play_api`. No dead exports.
 
-## 7. Porting plan (tick as you go)
+## 7. Plan (tick as you go)
 
-- [x] **P0 Bootstrap** (2026-09-01) — `brew install uv`, `uv python install 3.12`, `uv sync`, `uv run pytest --co -q` collects 181 items with **no** `StepDefinitionNotFoundError` for the 6 completed modules (expect many for the unported ones).
-- [x] **P1 common_steps.py** — port every generic step from `src/steps/commonSteps.js` (generators, header asserts, `is one of`, `not a server error`, `contains`, `is present`, `body is empty`, `has request_id`, context asserts, `Print response`).
-- [x] **P2 accounts_steps.py** — port `src/steps/accountsSteps.js` completely (create × 5, Set employment/theme/interests/bio, username of length, GET user, list + string page/per_page, exists HEAD/GET, update/patch/delete/logout × {token, raw auth header, no auth token}, login, typed assertions).
-- [x] **P3 mail_steps.py** — port `src/steps/mailSteps.js` + `assert_messages_have_no_full_body`.
-- [x] **P4 Green run** (2026-09-01) — Smoke 17/17 (40 s); full run **181 passed in 8 min 16 s** (JS: ≈10 min). First attempt hit a 521 origin outage (~3 min), second surfaced the h11 header-trim issue (6 "empty Bearer" scenarios) — both recorded in §8/§9. Always `curl /api/v1/health` first.
-- [x] **P5 Allure** (2026-09-01) — `npx allure@3 generate allure-results -o allure-report` → 181/181; Epic→Suite→SubSuite tree = 18 sub-suites with the exact per-feature counts; 298 HTTP sub-steps, 838 attachments. (`summary.json` "total" can look odd when results contain retries — check `data/test-results/*.json` labels instead.)
-- [x] **P6 CI** (2026-09-01) — first push run green (181 passed); GitHub Pages enabled via API (source `gh-pages` / `/`) → https://romasky.github.io/play-api-python/latest/. No `BASE_URL` variable needed (default). Node 20 deprecation annotations on the actions are informational.
-- [x] **P7 Docs** — README done (mirrors the JS README + porting-notes table). Wiki live: https://github.com/romasky/play-api-python/wiki (16 pages). Edit via the sibling checkout `../play-api-python.wiki` (remote `git@github.com-romasky:romasky/play-api-python.wiki.git`, branch `master`), not via this repo.
-- [x] **P8 Python-only upgrades** (2026-09-01) — (a) `ruff` (E/W/F/I/UP/B/SIM/RUF, line 120) + `mypy --strict` (untyped step defs allowed) as a CI `Lint` step together with `tools/check_steps.py`; (b) `Faker` in `generator.py` for names / message text / sender local part only — `email`, `username`, `local_part` stay random alnum (uniqueness → 409), names filtered to ASCII letters; (c) contracts for every documented 2xx JSON shape + `contract_for(method, path)` registry; `client.request()` validates each 2xx body inside an Allure sub-step `Contract: <Name>`; (d) actions bumped to checkout@v7 / setup-uv@**v10.0.1** (no floating `v8+` major tags exist — `@v10` fails with "unable to find version") / setup-node@v7 (Node 22) / upload-artifact@v7 / actions-gh-pages@v4.
+- [x] **P0–P8 Port** (2026-09-01) — bootstrap, all six JS step modules ported, 181/181 green in 8 min 16 s, Allure 3
+  tree, CI + Pages (https://romasky.github.io/play-api-python/latest/), README + wiki (16 pages, sibling checkout
+  `../play-api-python.wiki`, branch `master`), ruff/mypy gate, Faker, 2xx contracts, action bumps
+  (checkout@v7 / setup-uv@**v10.0.1** — no floating `v8+` tags exist / setup-node@v7 / upload-artifact@v7 /
+  download-artifact@v7 / actions-gh-pages@v4).
+- [x] **P9 Feature 17 fix** (2026-10-26, `aa5128c`) — another user's valid token → 403 FORBIDDEN (was 401).
+- [x] **P10 Whole-spec coverage** (2026-10-26, branch `feat/swagger-coverage`) — service layer, per-endpoint pacing,
+  spec drift + coverage tools, CI matrix; users list v2, Feature 17 reads, admin, JWT, store, files, webhooks,
+  SMTP simulator, bug reports, buggy API, chaos, challenges, API docs, SSE/WebSocket, reCAPTCHA.
+  800 scenarios, 79/79 operations.
+- [x] **P11 Review fixes + refactor** (2026-10-26) — three independent reviews (correctness, simplicity, conventions)
+  applied: cleanup-safe creates, strict contracts, spec-coverage attribution, CI re-run safety, WebSocket behind the
+  service, composite setup steps, shared support helpers, request models for every body, dead code removed.
+- [ ] **P12** Wiki pages for the new domains (sibling checkout; push = publish).
 
-## 8. Live-API facts not in `docs/API_REFERENCE.md` (verified 2026-08-31)
+## 8. Live-API facts not in the Swagger spec (verified 2026-10-26)
 
-- `GET /users/list` with non-positive / non-numeric `page` or `per_page` → `400 INVALID_PAGINATION`; `per_page > 100` → 200 (clamped). Feature asserts only "not 5xx, one of 200/400".
-- `OPTIONS /users/options` → **204, empty body** (Cloudflare), not the documented 200 + JSON.
-- Auth middleware order confirmed: no header → `MISSING_TOKEN`; `Bearer ` / `Bearer` / `Basic …` / no prefix → `INVALID_TOKEN_FORMAT`; any other `Bearer x` → `INVALID_TOKEN`.
-- `GET /auth/basic` works live (admin/admin); 401 body `{error:"Unauthorized", message}` + `WWW-Authenticate`.
-- Validation error for bio > 500: `error.details == "bio must be at most 500 characters long"` (no `validation[]`).
-- Origin outages show as Cloudflare 521 `origin_down` — not a test failure.
-- **2026-10-23 "Feature 17"**: a *valid* token of another user on PUT/PATCH/DELETE/logout → **403 `FORBIDDEN`** (was 401 `INVALID_TOKEN`).
-  The 3 cross-user scenarios were edited here — the feature files now follow the live API / Swagger
-  (`https://play-qa.com/swagger/doc.json`), no longer a verbatim copy of play-api-js.
-- One-off `RemoteProtocolError: Server disconnected` on the `Bearer` (no space) outline row (2026-10-21, single occurrence) — not reproducible, left as is (paced, never retried).
+General
+- 429 never carries `Retry-After` / `X-RateLimit-*`. Buckets (per IP): create-user + create-admin + challenge start
+  1/600 ms burst 100 · `/login` 1/12 s burst 5 · `/jwt/login` separate, same rate, **every call counts** (400s too) ·
+  `/jwt/decode` 1/2 s burst 10 · uploads and inbox creation 10/min burst 5 · store login and bug reports 30/min burst 10
+  (400s count) · global 10/s burst 20.
+- Unrouted methods → `404 text/plain "404 page not found"`, never 405 (HEAD /health, POST /chaos/cache, …).
+- Cloudflare replaces the origin body of 502/504/520–526 (incl. `/chaos/timeout`) with its own page — plain text, or
+  **HTML when the client accepts gzip (httpx always does)**. Assert the status only (`is a Cloudflare error page`).
+- `metadata` optional fields are omitted, not null; create returns ns timestamps, GET returns ms.
+
+Users / auth
+- Feature 17: a valid token of ANOTHER user on PUT/PATCH/DELETE/logout → **403 `FORBIDDEN`** (since 2026-10-23), also
+  for a non-existent or malformed id (never 404 — ids cannot be probed). Ownership is checked before body validation.
+- Reads (`/users/get`, `/users/list`) stay public; a PRESENT bad header → 401 (`Bearer`/`Basic`/no prefix/lowercase →
+  `INVALID_TOKEN_FORMAT`, unknown/revoked → `INVALID_TOKEN`), checked before the id. Only the owner sees `metadata.last_login_ip`.
+- `/users/list`: validation order page → limit → per_page → sort → filter → search; `limit` wins over `per_page` (both
+  validated); >100 clamped; Link URLs are relative and rewrite `per_page` → `limit`; `settings.language:EN` accepted.
+- Admin: seed `play-qa-admin` (published in the UI); non-admin → 403 `ADMIN_REQUIRED`; admin on any foreign/missing id →
+  403 `FORBIDDEN`; wrong/absent seed → 403 `INVALID_SEED_CODE` (body validation 400 first, uniqueness 409 last);
+  `/admin/users` has no X-Total-Count/Link; self-demotion is irreversible.
+- JWT: refresh token NOT single-use, body only (Authorization ignored), new access always 900 s; `/jwt/decode` format
+  errors are 400 `INVALID_JWT_FORMAT` (me/refresh: 401 `INVALID_TOKEN_FORMAT`); JWTs > ~12 KB in a header → CF 520.
+- Store: lock checked after the password (wrong password on locked_out_user → 401); performance_glitch_user ≈ 3 s.
+- `OPTIONS /users/options` → 204, empty body (Cloudflare). `GET /auth/basic` works (admin/admin).
+
+Files / webhooks / mail
+- Files: content type is sniffed (Go `DetectContentType`; a leading `ff fe` is a UTF-16 BOM → text/plain);
+  metadata ignores a bad token; a token-owned file deleted by anyone else, or with no token → 404 (not 401/403);
+  HEAD download → 404; no checksum header (compare bytes).
+- Webhooks: two 429 codes (`RATE_LIMIT_EXCEEDED`, `TOO_MANY_INBOXES` at 20 active per IP); signature tolerance ±300 s;
+  empty signature header = none (`null`); events `per_page` invalid → silently 20; event `query`/`body` keys are
+  OMITTED when empty (HEAD included); no `success` field on any webhook 2xx.
+- send-to: magic local parts match on ANY domain (or none), case-insensitive; accepted mail is stored in the SENDER's
+  mailbox, never delivered; no recipient validation; magic local parts → 409 `RESERVED_LOCAL_PART` on mailbox create.
+
+Chaos / buggy / challenges / misc
+- gzip follows the client's Accept-Encoding (spec: always gzip); redirect status = `type` (301/302/307/308), Location
+  relative, `/done` always says `redirected:true`; flaky body is returned on every status.
+- Buggy bugs are permanent and deterministic (full page drops its last item; cart ignores the last position; 09:00 in UTC).
+- Challenges: malformed `attempt_id` → 409 `NO_OPEN_ATTEMPT`; `can_reset` only with `target_missing`; the locale hint
+  for patch-first-name is wrong (partial `profile` PATCH → 400 "last name is required").
+- SSE bounds steps 5–100, interval_ms 100–2000 (not in the spec); WS max message 32 KiB (close 1009 arrives ~20 s
+  later — not tested); reCAPTCHA 400 message is "Invalid request body", a bogus token → 200 `success:false`.
+- One-off `RemoteProtocolError: Server disconnected` on the `Bearer` (no space) row (2026-10-21) — not reproducible.
 
 ## 9. Pitfalls specific to the Python stack
 
-- `allure-pytest-bdd` does **not** parse `@allure.label.*` Gherkin tags (checked in its source: only `allure_label` markers) — the `pytest_bdd_apply_tag` hook in `conftest.py` does it. `allure-behave` would do it natively; irrelevant here.
-- allure-python has no per-step *parameters* (JS used `ctx.parameter`) — `client.request()` attaches small JSON/TEXT attachments instead. `allure.attach` is sync, so the JS "attachment after step closed" race does not exist.
-- h11 (httpx's HTTP/1.1 layer) **refuses to send** a header value with surrounding whitespace (`LocalProtocolError: Illegal header value b'Bearer '`) — found on the first full run (6 "empty Bearer" scenarios). `client.request()` therefore trims header values before sending, which is exactly what axios did in the JS port, so `"Bearer "` reaches the server as `"Bearer"` → `INVALID_TOKEN_FORMAT`. The Allure attachment still shows the untrimmed value.
-- `Get and check status code {code:d} from "{var}"` is used after `Then` **and** `When` in the features — it is registered with both decorators.
-- `pytest -m` marker names come from tags; tags with dots/colons never reach `pytest.mark` because the hook converts them (otherwise pytest warns about unknown marks).
+- **`parsers.parse` `{x}` is a lazy `.+?` that swallows quotes**: `… for "{id}" and save …` also matches
+  `… for "a" with raw auth header "b" and save …` → two definitions, pytest-bdd silently picks one. Use `quoted()`.
+  `tools/check_steps.py` reports such ambiguity (it found a latent one in the original mail steps).
+- `parsers.parse` `{name}` needs ≥ 1 char → `equals ""` needs a regex (`Assert field … equals` uses one) or `quoted()`.
+- **Examples-table cells deliver `\"` with a DOUBLED backslash** (step text: single) — `unescape_quotes()` handles both.
+- **Gherkin trims table cells** — a value with leading/trailing whitespace must live in the step text, not a table.
+- `allure-pytest-bdd` does not parse `@allure.label.*` tags — the `pytest_bdd_apply_tag` hook in `conftest.py` does.
+- h11 refuses header values with surrounding whitespace — `client.request()` trims them (axios parity).
+- httpx: `data=` alone sends x-www-form-urlencoded, not multipart — form fields go in `files=` as `(None, value, None)`.
+  httpx never follows redirects unless `follow_redirects=True`; 301/302 turn POST into GET, 307/308 keep it.
+- HEAD responses never have a body — never assert a text body on HEAD.
+- Python unbinds the `except … as exc` name when the block ends — a deferred lambda must capture a local copy
+  (see `save_created`), or it raises NameError at cleanup time.
+- `pytest --co` does NOT detect undefined or ambiguous steps — run `tools/check_steps.py`.
+- `ctx.body()` returns the raw text for non-JSON bodies, so a 521 page fails as "Field 'id' not found … <!DOCTYPE html>"
+  (status *failed*) rather than a JSONDecodeError. A whole run failing that way = origin outage, re-run later.
 - Do not use `--clean-alluredir` — it would delete the committed `allure-results/categories.json`.
-- `pytest-bdd` 8 requires the file to start with `Feature:` and tags without spaces — the copied features already comply.
-- **`pytest --co` does NOT detect undefined steps** — pytest-bdd 8 resolves step definitions at runtime, one scenario at a time — and it never reports *ambiguous* steps at all (two matching definitions → one silently wins by fixture-resolution order). Run `uv run python tools/check_steps.py` (offline, < 1 s) — it reports both.
-- `parsers.parse` `{name}` is `.+?` → needs ≥ 1 char. `Set interests ""` (CreateUserTests:79) therefore uses `parsers.re(r'Set interests "(?P<csv>.*)"')`.
-- Cucumber's `{string}` unescaped `\"`; pytest-bdd passes step text verbatim → `… with raw body "{\"email\":…}"` must go through `utils.gherkin.raw_json()`.
-- `ctx.body()` returns the raw text for non-JSON bodies (Cloudflare 521 HTML) so failures read "Field 'id' not found … Body: <!DOCTYPE html>…521: Web server is down" (status *failed*, category "API Defects") rather than a JSONDecodeError (*broken*). A whole run failing that way = origin outage, re-run later.
-- Registering one function with both `@when` and `@then` is not needed (and fragile) — use `@step`.
+- `spec_coverage.py` counts calls in `allure-results/`, which accumulates across local runs — for an honest number
+  run it on a fresh results dir (CI does: the report job merges only this run's artifacts).
 
 ## 10. Useful commands
 
 ```bash
 uv sync                                   # install
-uv run pytest --co -q                     # collect only — 181 items; does NOT check step definitions
 uv run python tools/check_steps.py        # offline: every step ↔ exactly one step definition (run this first)
-uv run ruff check . && uv run ruff format --check . && uv run mypy   # the CI Lint gate
-uv run pytest -m Smoke                    # 17 scenarios, ~1 min
-uv run pytest -k empty_bearer               # by scenario name (test ids are snake_case)
-uv run pytest -k "empty_bearer or malformed_authorization"   # by test-name substring — feature-file paths do NOT work with scenarios()
+uv run ruff check . && uv run ruff format --check . && uv run mypy   # + check_steps = the CI lint job
+uv run pytest -m Smoke                    # 92 scenarios
+uv run pytest --epic Chaos_Engineering    # one Allure epic (repeatable) — what the CI matrix does
+uv run pytest -k "empty_bearer or malformed_authorization"   # by test-name substring (feature paths do NOT work)
+uv run python tools/spec_drift.py         # live Swagger vs docs/openapi.json (--update to accept a new spec)
+uv run python tools/spec_coverage.py      # spec operations called by the runs in allure-results/
 BASE_URL=https://staging.play-qa.com uv run pytest
 npx --yes allure@3 generate allure-results -o allure-report && npx --yes allure@3 open allure-report
 ```
 
-Reference material: the JS repo above (steps + wiki), the Java repo `/Users/macbook/Documents/Storage/rs/projects/play-api-java`
-(same features with typed-DTO step phrasing — do **not** copy its step names), and `docs/API_REFERENCE.md`.
+Reference material: the JS repo above (steps + wiki), the Java repo `/Users/macbook/Documents/Storage/rs/projects/play-api-java`,
+the API backend `/Users/macbook/Documents/Storage/rs/projects/play-qa-api` (Go; `internal/middleware/ratelimit.go`
+has the bucket table), `docs/API_REFERENCE.md` and `docs/openapi.json`.

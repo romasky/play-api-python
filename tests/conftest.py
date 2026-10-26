@@ -15,12 +15,9 @@ from play_api.context import ScenarioContext
 pytest_plugins = [
     "tests.steps.common_steps",
     "tests.steps.accounts_steps",
-    "tests.steps.mail_steps",
-    "tests.steps.health_steps",
-    "tests.steps.basic_auth_steps",
-    "tests.steps.options_steps",
     "tests.steps.admin_steps",
     "tests.steps.auth_steps",
+    "tests.steps.mail_steps",
     "tests.steps.files_steps",
     "tests.steps.webhooks_steps",
     "tests.steps.bug_reports_steps",
@@ -28,6 +25,7 @@ pytest_plugins = [
     "tests.steps.chaos_steps",
     "tests.steps.challenges_steps",
     "tests.steps.system_steps",
+    "tests.steps.realtime_steps",
 ]
 
 

@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import Field
 
+from play_api.assertions import assert_every_item
 from play_api.models.responses.base import Contract, entry
-from play_api.utils.json_path import has_path
 
 
 class MailboxResponse(Contract):
@@ -58,9 +58,7 @@ CONTRACTS_2XX = (
 
 
 def assert_messages_have_no_full_body(body: Any) -> None:
-    messages = MessagesListResponse.check(body).messages
-    assert messages, "Expected at least one message in the list to check its shape"
-    for i, m in enumerate(messages):
-        assert has_path(m, "body_preview"), f"messages[{i}] has no 'body_preview': {m}"
-        leaked = [f for f in ("body", "html_body", "headers") if has_path(m, f)]
-        assert not leaked, f"messages[{i}] exposes full-body fields {leaked}: {m}"
+    """List items carry only the preview — never the full body, the HTML body or the headers."""
+    assert_every_item(body, "messages", "body_preview", present=True)
+    for field in ("body", "html_body", "headers"):
+        assert_every_item(body, "messages", field, present=False)

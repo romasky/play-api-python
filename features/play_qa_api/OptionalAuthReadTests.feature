@@ -15,9 +15,7 @@ Feature: Optional authentication on reads (Feature 17)
 
   @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
   Scenario Outline: Get user with malformed Authorization "<label>" returns 401 INVALID_TOKEN_FORMAT
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    And Extract "access_token" from "createRes" and save as "token"
+    Given a user with id "userId" and token "token"
     When Send GET user request for "userId" with raw auth header "<header>" and save response as "response"
     Then Get and check status code 401 from "response"
     And Assert error code is "INVALID_TOKEN_FORMAT" in response "response"
@@ -61,9 +59,7 @@ Feature: Optional authentication on reads (Feature 17)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Reads with a revoked token (after logout) return 401 INVALID_TOKEN
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    And Extract "access_token" from "createRes" and save as "token"
+    Given a user with id "userId" and token "token"
     When Logout user "userId" with token "token" and save response as "logoutRes"
     Then Get and check status code 200 from "logoutRes"
     When Send GET user request for "userId" with token "token" and save response as "getRes"
@@ -75,9 +71,7 @@ Feature: Optional authentication on reads (Feature 17)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Get user with the old token after re-login returns 401 INVALID_TOKEN
-    Given Create minimal user and save response as "createRes"
-    And Extract "id" from "createRes" and save as "userId"
-    And Extract "access_token" from "createRes" and save as "oldToken"
+    Given a user with id "userId" and token "oldToken"
     When Login with "generatedEmail" and "generatedPassword" and save response as "loginRes"
     Then Get and check status code 200 from "loginRes"
     When Send GET user request for "userId" with token "oldToken" and save response as "response"
@@ -109,8 +103,7 @@ Feature: Optional authentication on reads (Feature 17)
     And Extract "id" from "userARes" and save as "userAId"
     When Login with "generatedEmail" and "generatedPassword" and save response as "loginRes"
     Then Get and check status code 200 from "loginRes"
-    Given Create minimal user and save response as "userBRes"
-    And Extract "access_token" from "userBRes" and save as "userBToken"
+    Given a user with token "userBToken"
     When Send GET user request for "userAId" with token "userBToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert field "metadata.last_login_ip" is absent in response "response"
@@ -121,16 +114,14 @@ Feature: Optional authentication on reads (Feature 17)
     And Extract "id" from "userARes" and save as "userAId"
     When Login with "generatedEmail" and "generatedPassword" and save response as "loginRes"
     Then Get and check status code 200 from "loginRes"
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Send GET user request for "userAId" with token "adminToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert field "metadata.last_login_ip" is absent in response "response"
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: A valid token with a non-existent id returns 404 USER_NOT_FOUND
-    Given Create minimal user and save response as "createRes"
-    And Extract "access_token" from "createRes" and save as "token"
+    Given a user with token "token"
     And Generate fake mongo id and save as "fakeId"
     When Send GET user request for "fakeId" with token "token" and save response as "response"
     Then Get and check status code 404 from "response"

@@ -69,8 +69,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: A fresh player has no progress
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Get challenge progress with token "playerToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert field "solved_count" equals "0" in response "response"
@@ -81,8 +80,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: Start issues an open attempt with a sandbox user and its token
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "delete-user-404" with token "playerToken" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "status" equals "open" in response "response"
@@ -92,8 +90,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: A repeated start returns the same open attempt without the sandbox token
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "patch-first-name" with token "playerToken" and save response as "firstRes"
     And Extract "attempt_id" from "firstRes" and save as "attemptId"
     And Start challenge "patch-first-name" with token "playerToken" and save response as "secondRes"
@@ -104,16 +101,14 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Starting an unknown challenge returns 404 CHALLENGE_NOT_FOUND
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "no-such-challenge" with token "playerToken" and save response as "response"
     Then Get and check status code 404 from "response"
     And Assert error code is "CHALLENGE_NOT_FOUND" in response "response"
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Start with reset=<reset> returns 400 VALIDATION_ERROR (only true/false)
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "delete-user-404" with query "reset=<reset>" and token "playerToken" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"
@@ -125,16 +120,14 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Verify before any start returns 409 NO_OPEN_ATTEMPT
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Verify challenge "delete-user-404" with token "playerToken" and save response as "response"
     Then Get and check status code 409 from "response"
     And Assert error code is "NO_OPEN_ATTEMPT" in response "response"
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Verify with attempt_id <label> returns 409 NO_OPEN_ATTEMPT (malformed is not 400)
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "delete-user-404" with token "playerToken" and save response as "startRes"
     And Verify challenge "delete-user-404" with raw body "{\"attempt_id\":\"<attempt>\"}" and token "playerToken" and save response as "response"
     Then Get and check status code 409 from "response"
@@ -146,8 +139,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Verify with <label> returns 400 VALIDATION_ERROR
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "delete-user-404" with token "playerToken" and save response as "startRes"
     And Verify challenge "delete-user-404" with raw body "<body>" and token "playerToken" and save response as "response"
     Then Get and check status code 400 from "response"
@@ -162,8 +154,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Hints are revealed strictly in order and a repeat reveal is idempotent
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Reveal hint 2 of challenge "delete-user-404" with token "playerToken" and save response as "outOfOrder"
     Then Get and check status code 409 from "outOfOrder"
     And Assert error code is "HINT_LEVEL_OUT_OF_ORDER" in response "outOfOrder"
@@ -180,8 +171,7 @@ Feature: Challenges — catalog, hints, attempts and verification rules
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Revealing a hint with <label> returns 400 VALIDATION_ERROR
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Reveal a hint of challenge "delete-user-404" with raw body "<body>" and token "playerToken" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"

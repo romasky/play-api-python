@@ -4,8 +4,10 @@
 so an undefined or ambiguous step surfaces one scenario at a time, after real HTTP calls.
 This script renders every scenario (outline rows included) and matches each step against the
 registered definitions, honouring pytest-bdd's keyword typing (`@step` matches any keyword).
+Definitions no feature uses are listed as UNUSED (informational — dead-code candidates). A feature file
+without an `@allure.label.epic:` tag is fatal: the CI matrix selects by epic, so it would never run.
 
-    uv run python tools/check_steps.py            # exit 1 on any missing / ambiguous step
+    uv run python tools/check_steps.py            # exit 1 on a missing / ambiguous step or an epic-less feature
 """
 
 from __future__ import annotations
@@ -37,10 +39,14 @@ def main() -> int:
     defs = load_step_definitions()
     missing: list[str] = []
     ambiguous: dict[str, list[str]] = {}
+    used: set[str] = set()
     scenarios = steps = 0
 
+    no_epic: list[str] = []
     for feature_file in sorted(glob.glob(str(ROOT / "features" / "**" / "*.feature"), recursive=True)):
         feature = FeatureParser(str(ROOT), feature_file).parse()
+        if not any(tag.startswith("allure.label.epic:") for tag in feature.tags):
+            no_epic.append(str(Path(feature_file).relative_to(ROOT)))
         for template in feature.scenarios.values():
             contexts = [c for examples in template.examples for c in examples.as_contexts()] or [{}]
             for context in contexts:
@@ -52,6 +58,7 @@ def main() -> int:
                         for name, sc in defs
                         if (sc.type is None or sc.type == step.type) and sc.parser.is_matching(step.name)
                     ]
+                    used.update(hits)
                     if not hits:
                         missing.append(
                             f"{Path(feature_file).relative_to(ROOT)}:{step.line_number} [{step.type}] {step.name}"
@@ -64,8 +71,14 @@ def main() -> int:
         print("MISSING  ", line)
     for name, hits in ambiguous.items():
         print("AMBIGUOUS", name, "->", hits)
-    ok = not missing and not ambiguous
-    print("OK" if ok else f"{len(missing)} missing, {len(ambiguous)} ambiguous")
+    for name in no_epic:
+        print("NO EPIC  ", name, "(CI selects by epic — this feature would never run there)")
+    unused = sorted(name for name, _ in defs if name not in used)
+    for name in unused:
+        print("UNUSED   ", name)
+    ok = not missing and not ambiguous and not no_epic  # unused definitions are reported, not fatal
+    problems = f"{len(missing)} missing, {len(ambiguous)} ambiguous, {len(no_epic)} without an epic"
+    print(("OK" if ok else problems) + f" ({len(unused)} unused)")
     return 0 if ok else 1
 
 

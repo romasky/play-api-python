@@ -6,7 +6,7 @@ import httpx2 as httpx
 
 from play_api.api import client, paths
 from play_api.api.client import Params
-from play_api.services import JsonBody, to_json
+from play_api.services import JsonBody
 
 
 def catalog() -> httpx.Response:
@@ -18,7 +18,7 @@ def items(params: Params | None = None) -> httpx.Response:
 
 
 def cart_total(body: JsonBody) -> httpx.Response:
-    return client.post(paths.BUGGY_CART_TOTAL, to_json(body))
+    return client.post(paths.BUGGY_CART_TOTAL, body)
 
 
 def schedule(params: Params | None = None) -> httpx.Response:

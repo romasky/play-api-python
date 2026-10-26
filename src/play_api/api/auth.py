@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 
-Headers = dict[str, str]
+from play_api.api.client import Headers
 
 
 def bearer(token: str | None) -> Headers:

@@ -69,6 +69,24 @@ Feature: Chaos — compression and redirect chains (GET /chaos/gzip, GET|POST /c
       | 302  | drops (POST→GET)  | GET    | 0      | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
       | 301  | drops (POST→GET)  | GET    | 0      | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 
+  @Run @Positive @allure.label.story:Positive_Scenario
+  Scenario Outline: /done called directly with <method> still claims redirected=true (it cannot detect redirects)
+    When Send "<method>" directly to chaos redirect done and save response as "response"
+    Then Get and check status code 200 from "response"
+    And Assert field "redirected" equals "true" in response "response"
+    And Assert field "method" equals "<method>" in response "response"
+    And Assert field "body_length" equals "0" in response "response"
+    Examples:
+      | method |
+      | GET    |
+      | POST   |
+
+  @Run @Negative @allure.label.story:Negative_Scenario
+  Scenario: A body over 1 MiB posted to /done returns 413 PAYLOAD_TOO_LARGE
+    When Post directly to chaos redirect done a body of 1048577 bytes and save response as "response"
+    Then Get and check status code 413 from "response"
+    And Assert error code is "PAYLOAD_TOO_LARGE" in response "response"
+
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Redirect count "<hops>" returns 400 <code>
     When Send "GET" chaos redirect "<hops>" with query "" and save response as "response"

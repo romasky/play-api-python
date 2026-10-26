@@ -9,11 +9,13 @@ Design (keep it):
   whitespace is trimmed, because h11 (httpx's HTTP/1.1 layer) refuses to send a value such
   as `"Bearer "` (RFC 7230 field-value grammar) and raises LocalProtocolError. axios trims
   the same way, so this is exactly what the JS port put on the wire (→ INVALID_TOKEN_FORMAT).
-* Bodies: `json=` (the default, any JSON value; `RawJson` = verbatim malformed JSON), `content=`
-  (raw text/bytes — send your own Content-Type) or `files=` (multipart parts, form fields included).
-  Large or binary payloads are summarised in the report instead of attached verbatim.
-* `headers` may be a list of pairs when a header repeats.
-* Every 2xx JSON body is validated against its registered contract (`contract_for`).
+  `headers` may also be a list of pairs when a header repeats.
+* Bodies: `json=` — a request model (serialised with `to_body()`), any JSON value, or `RawJson`
+  (verbatim malformed JSON); `content=` (raw text/bytes — send your own Content-Type); or `files=`
+  (multipart parts, form fields included). Large or binary payloads are summarised in the report.
+* Every 2xx JSON body is validated against its registered contract (`contract_for`). A violation raises
+  `ContractViolation`, which still carries the response — so a create step can register its cleanup.
+* A client-side timeout is recorded inside the sub-step (which stays green) and re-raised after it.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ import httpx2 as httpx  # httpx2 == httpx maintained by Pydantic Services; API i
 
 from play_api import pacing
 from play_api.config import settings
+from play_api.models.requests import Body
 from play_api.models.responses import contract_for
 
 Headers = dict[str, str]
@@ -49,8 +52,18 @@ class RawJson(str):
     (truncated JSON) that cannot be represented as a Python value."""
 
 
-def _pairs(headers: Headers | HeaderPairs | None) -> HeaderPairs:
-    return list(headers.items()) if isinstance(headers, dict) else list(headers or [])
+class ContractViolation(AssertionError):
+    """A 2xx body broke its contract. `response` is the real response, so callers can still clean up."""
+
+    def __init__(self, message: str, response: httpx.Response) -> None:
+        super().__init__(message)
+        self.response = response
+
+
+def _wire_headers(headers: Headers | HeaderPairs | None) -> HeaderPairs:
+    """Pairs with trimmed values (the attachment keeps the value exactly as the step wrote it)."""
+    pairs = list(headers.items()) if isinstance(headers, dict) else list(headers or [])
+    return [(name, value.strip()) for name, value in pairs]
 
 
 def _attach_text(text: str, name: str, kind: Any) -> None:
@@ -109,7 +122,10 @@ def _check_contract(method: str, path: str, response: httpx.Response, parsed: An
     contract = contract_for(method, path) if 200 <= response.status_code < 300 and parsed is not None else None
     if contract is not None:
         with allure.step(f"Contract: {contract.__name__}"):
-            contract.check(parsed)
+            try:
+                contract.check(parsed)
+            except AssertionError as exc:
+                raise ContractViolation(str(exc), response) from None
 
 
 def request(
@@ -126,67 +142,73 @@ def request(
 ) -> httpx.Response:
     # allure-python has no per-step parameters (unlike allure-js-commons ctx.parameter),
     # so every per-call datum goes in as a small attachment inside the sub-step.
-    if isinstance(json, RawJson):
+    if isinstance(json, Body):
+        json = json.to_body()
+    elif isinstance(json, RawJson):
         json, content = None, str(json)
-        headers = [("Content-Type", "application/json"), *_pairs(headers)]
+        headers = [("Content-Type", "application/json"), *_wire_headers(headers)]
+    timed_out: httpx.TimeoutException | None = None
     with allure.step(f"{method} {path}"):
         _attach_request(params, headers, json, content, files)
-        # Attachment above shows the header exactly as the step wrote it; the wire gets the trimmed value.
-        wire_headers = [(k, v.strip()) for k, v in _pairs(headers)]
         pacing.throttle(method, path)
-        response = _client.request(
-            method,
-            path,
-            json=json,
-            content=content,
-            files=files,
-            params=params,
-            headers=wire_headers,
-            follow_redirects=follow_redirects,
-            timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
-        )
-        for hop in response.history:
-            allure.attach(f"{hop.status_code} → {hop.headers.get('location')}", "Redirect", allure.attachment_type.TEXT)
-        parsed = _attach_response(response)
-        _check_contract(method, path, response, parsed)
-        return response
+        try:
+            response = _client.request(
+                method,
+                path,
+                json=json,
+                content=content,
+                files=files,
+                params=params,
+                headers=_wire_headers(headers),
+                follow_redirects=follow_redirects,
+                timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
+            )
+        except httpx.TimeoutException as exc:
+            # an expected outcome in timeout scenarios: note it, leave the sub-step green, re-raise below
+            allure.attach(f"{type(exc).__name__} after the {timeout} s client timeout", "Timeout", "text/plain")
+            timed_out = exc
+        else:
+            for hop in response.history:
+                allure.attach(f"{hop.status_code} → {hop.headers.get('location')}", "Redirect", "text/plain")
+            parsed = _attach_response(response)
+            _check_contract(method, path, response, parsed)
+    if timed_out is not None:
+        raise timed_out
+    return response
 
 
 @contextmanager
 def stream(
     method: str, path: str, *, params: Params | None = None, headers: Headers | None = None
 ) -> Iterator[httpx.Response]:
-    """Streaming variant (SSE): the body is NOT read up front — iterate `response.iter_lines()`."""
+    """Streaming variant (SSE, raw bytes): the body is NOT read up front — iterate the response."""
     with allure.step(f"{method} {path} (stream)"):
         _attach_request(params, headers, None, None, None)
-        with _client.stream(method, path, params=params, headers=headers) as response:
+        pacing.throttle(method, path)
+        with _client.stream(method, path, params=params, headers=_wire_headers(headers)) as response:
             allure.attach(str(response.status_code), "Status", allure.attachment_type.TEXT)
             yield response
 
 
-def get(path: str, params: Params | None = None, headers: Headers | None = None, **kwargs: Any) -> httpx.Response:
+def get(path: str, *, params: Params | None = None, headers: Headers | None = None, **kwargs: Any) -> httpx.Response:
     return request("GET", path, params=params, headers=headers, **kwargs)
 
 
-def post(path: str, json: Any = None, headers: Headers | None = None, **kwargs: Any) -> httpx.Response:
+def post(path: str, json: Any = None, *, headers: Headers | None = None, **kwargs: Any) -> httpx.Response:
     return request("POST", path, json=json, headers=headers, **kwargs)
 
 
-def put(path: str, json: Any, headers: Headers | None = None) -> httpx.Response:
+def put(path: str, json: Any, *, headers: Headers | None = None) -> httpx.Response:
     return request("PUT", path, json=json, headers=headers)
 
 
-def patch(path: str, json: Any, headers: Headers | None = None) -> httpx.Response:
+def patch(path: str, json: Any, *, headers: Headers | None = None) -> httpx.Response:
     return request("PATCH", path, json=json, headers=headers)
 
 
-def delete(path: str, headers: Headers | None = None) -> httpx.Response:
+def delete(path: str, *, headers: Headers | None = None) -> httpx.Response:
     return request("DELETE", path, headers=headers)
 
 
-def head(path: str, headers: Headers | None = None) -> httpx.Response:
-    return request("HEAD", path, headers=headers)
-
-
-def options(path: str, headers: Headers | None = None) -> httpx.Response:
+def options(path: str, *, headers: Headers | None = None) -> httpx.Response:
     return request("OPTIONS", path, headers=headers)

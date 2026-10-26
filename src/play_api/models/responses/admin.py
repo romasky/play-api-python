@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from play_api.models.responses.base import Contract, entry
-from play_api.models.responses.users import UserResponse
+from play_api.models.responses.users import UserResponse, UsersListResponse
 
 
 class RoleCounts(Contract):
@@ -21,14 +21,8 @@ class AdminStatsResponse(Contract):
     generated_at: str
 
 
-class AdminUsersListResponse(Contract):
+class AdminUsersListResponse(UsersListResponse):
     """Same envelope as /users/list (but no X-Total-Count / Link headers); rows add `has_active_token`."""
-
-    users: list[dict[str, Any]]
-    page: int
-    per_page: int
-    total: int
-    total_pages: int
 
 
 CONTRACTS_2XX = (

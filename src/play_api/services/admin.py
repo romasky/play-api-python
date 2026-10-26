@@ -6,7 +6,7 @@ import httpx2 as httpx
 
 from play_api.api import client, paths
 from play_api.api.client import Headers, Params
-from play_api.services import JsonBody, to_json
+from play_api.services import JsonBody
 
 
 def stats(headers: Headers) -> httpx.Response:
@@ -18,8 +18,8 @@ def list_users(headers: Headers, params: Params | None = None) -> httpx.Response
 
 
 def set_role(user_id: str, body: JsonBody, headers: Headers) -> httpx.Response:
-    return client.patch(paths.admin_user_role(user_id), to_json(body), headers)
+    return client.patch(paths.admin_user_role(user_id), body, headers=headers)
 
 
 def delete_user(user_id: str, headers: Headers) -> httpx.Response:
-    return client.delete(paths.admin_user(user_id), headers)
+    return client.delete(paths.admin_user(user_id), headers=headers)

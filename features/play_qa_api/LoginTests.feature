@@ -73,6 +73,7 @@ Feature: Login
     And Save string "somepassword123" as "somePass"
     When Login with "fakeEmail" and "somePass" and save response as "response"
     Then Get and check status code 401 from "response"
+    And Assert error code is "INVALID_CREDENTIALS" in response "response"
     And Assert response header "x-request-id" is present in "response"
 
   @Run @Negative @allure.label.story:Negative_Scenario

@@ -6,11 +6,11 @@ import httpx2 as httpx
 
 from play_api.api import client, paths
 from play_api.api.client import Headers, Params
-from play_api.services import JsonBody, to_json
+from play_api.services import JsonBody
 
 
 def submit(body: JsonBody, headers: Headers) -> httpx.Response:
-    return client.post(paths.BUG_REPORTS, to_json(body), headers)
+    return client.post(paths.BUG_REPORTS, body, headers=headers)
 
 
 def list_mine(headers: Headers, params: Params | None = None) -> httpx.Response:

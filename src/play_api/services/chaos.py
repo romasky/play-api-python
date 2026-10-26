@@ -51,10 +51,16 @@ def gzip(headers: Headers) -> httpx.Response:
     return client.get(paths.CHAOS_GZIP, headers=headers)
 
 
-def gzip_raw_prefix(headers: Headers, size: int = 2) -> bytes:
-    """First bytes of the body exactly as sent on the wire (before httpx decodes Content-Encoding)."""
+def gzip_magic(headers: Headers) -> bytes:
+    """The first two body bytes exactly as sent on the wire (before httpx decodes Content-Encoding)."""
+    prefix = b""
     with client.stream("GET", paths.CHAOS_GZIP, headers=headers) as response:
-        return next(response.iter_raw(), b"")[:size]
+        assert response.status_code == 200, f"GET /chaos/gzip answered {response.status_code}"
+        for chunk in response.iter_raw():
+            prefix += chunk
+            if len(prefix) >= 2:
+                break
+    return prefix[:2]
 
 
 def redirect(
@@ -66,6 +72,11 @@ def redirect(
     follow: bool = False,
 ) -> httpx.Response:
     return client.request(method, paths.chaos_redirect(hops), params=params, content=content, follow_redirects=follow)
+
+
+def redirect_done(method: str, content: str | None = None) -> httpx.Response:
+    """The chain's final destination, called directly (no redirect involved)."""
+    return client.request(method, paths.chaos_redirect("done"), content=content)
 
 
 def status(code: str) -> httpx.Response:

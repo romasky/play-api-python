@@ -1,4 +1,4 @@
-"""System contracts — GET /health and the downloadable API descriptions."""
+"""System contracts — GET /health, the downloadable API descriptions, POST /verify-recaptcha."""
 
 from __future__ import annotations
 
@@ -30,9 +30,17 @@ class PostmanEnvironment(Contract):
     values: list[dict[str, Any]]
 
 
+class RecaptchaVerifyResponse(Contract):
+    """200 means Google answered — `success` says whether the token passed (a bogus one: false + error_codes)."""
+
+    success: bool
+    error_codes: list[str] | None = None
+
+
 CONTRACTS_2XX = (
     entry("GET", r"/health", HealthResponse),
     entry("GET", r"/openapi\.json", OpenApiDocument),
     entry("GET", r"/postman/collection\.json", PostmanCollection),
     entry("GET", r"/postman/environment\.json", PostmanEnvironment),
+    entry("POST", r"/verify-recaptcha", RecaptchaVerifyResponse),
 )

@@ -13,7 +13,7 @@ Feature: Mailbox Create
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: Create mailbox with custom local_part
     Given Generate local part and save as "localPart"
-    When Create mailbox with context local_part "localPart" and save response as "response"
+    When Create mailbox with local_part "localPart" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "email_address" contains "localPart" in response "response"
 
@@ -32,7 +32,7 @@ Feature: Mailbox Create
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario Outline: Create mailbox with local_part at length boundary <length> returns 201
     Given Generate string of length <length> and save as "localPart"
-    When Create mailbox with context local_part "localPart" and save response as "response"
+    When Create mailbox with local_part "localPart" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "email_address" contains "localPart" in response "response"
     Examples:
@@ -43,7 +43,7 @@ Feature: Mailbox Create
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: Create mailbox with allowed special chars underscore and hyphen returns 201
     Given Generate local part with underscore and hyphen and save as "localPart"
-    When Create mailbox with context local_part "localPart" and save response as "response"
+    When Create mailbox with local_part "localPart" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "email_address" contains "localPart" in response "response"
 
@@ -68,9 +68,9 @@ Feature: Mailbox Create
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Create duplicate mailbox address returns 409
     Given Generate local part and save as "dupLocalPart"
-    When Create mailbox with context local_part "dupLocalPart" and save response as "firstRes"
+    When Create mailbox with local_part "dupLocalPart" and save response as "firstRes"
     Then Get and check status code 201 from "firstRes"
-    When Create mailbox with context local_part "dupLocalPart" and save response as "secondRes"
+    When Create mailbox with local_part "dupLocalPart" and save response as "secondRes"
     Then Get and check status code 409 from "secondRes"
     And Assert error code is "ADDRESS_TAKEN" in response "secondRes"
 
@@ -99,7 +99,7 @@ Feature: Mailbox Create
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: Create mailbox with too-long local_part returns 400
     Given Generate string of length 31 and save as "longLocalPart"
-    When Create mailbox with context local_part "longLocalPart" and save response as "response"
+    When Create mailbox with local_part "longLocalPart" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "INVALID_LOCAL_PART" in response "response"
 

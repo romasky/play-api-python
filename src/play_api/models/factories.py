@@ -1,13 +1,18 @@
-"""Ready-made valid request bodies for scenarios that test something *other* than payload validation
-(auth, ownership, flows). Validation scenarios build their bodies field by field in the steps."""
+"""Request bodies built for scenarios: valid ready-made ones (for tests of auth, ownership, flows), bodies
+assembled from context keys, and named invalid variants."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from play_api.api import paths
 from play_api.config import settings
+from play_api.context import ScenarioContext
 from play_api.models.requests import (
     AddressReq,
+    Body,
+    CartItem,
+    CartReq,
     ContactsReq,
     Coordinates,
     CreateAdminReq,
@@ -18,6 +23,7 @@ from play_api.models.requests import (
     SettingsReq,
 )
 from play_api.utils import generator as gen
+from play_api.utils.lookup import choose
 
 
 def minimal_profile() -> ProfileReq:
@@ -43,6 +49,34 @@ def admin(seed_code: str | None = settings.admin_seed_code, email: str | None = 
         password=gen.password(),
         profile=minimal_profile(),
         seed_code=seed_code,
+    )
+
+
+def user_from_context(ctx: ScenarioContext, *, with_password: bool = True) -> CreateUserReq:
+    """A create/update body from context keys set by earlier steps: email, username, (password),
+    firstName, lastName, plus whatever optional parts were set (gender, profileBio, contacts, address, …)."""
+
+    def part(key: str, model: type[Body]) -> Any:
+        value = ctx.opt(key)
+        return model(**value) if value else None
+
+    return CreateUserReq(
+        email=ctx.str("email"),
+        username=ctx.str("username"),
+        password=ctx.str("password") if with_password else None,
+        profile=ProfileReq(
+            first_name=ctx.str("firstName"),
+            last_name=ctx.str("lastName"),
+            gender=ctx.opt("gender"),
+            bio=ctx.opt("profileBio"),
+            date_of_birth=ctx.opt("dateOfBirth"),
+            interests=ctx.opt("interests"),
+            avatar_url=ctx.opt("avatarUrl"),
+        ),
+        contacts=part("contacts", ContactsReq),
+        address=part("address", AddressReq),
+        employment=part("employment", EmploymentReq),
+        settings=part("settings", SettingsReq),
     )
 
 
@@ -111,23 +145,24 @@ def user_with_all_optional_fields() -> CreateUserReq:
 # A report scores 100 when: ≥ 2 steps, one step names the bug's METHOD + path, expected/actual are
 # ≥ 10 chars and differ, the severity is in the bug's allowed set, and the title is ≥ 12 chars.
 
-_BUG_ENDPOINTS = {
-    "pagination-off-by-one": ("GET", "/buggy/items"),
-    "cart-total-wrong": ("POST", "/buggy/cart/total"),
-    "timezone-shift": ("GET", "/buggy/schedule"),
+# bug_id → (method, catalogued path, one allowed severity); paths are relative to /api/v1 as in GET /buggy
+_BUGS = {
+    "pagination-off-by-one": ("GET", paths.BUGGY_ITEMS, "low"),
+    "cart-total-wrong": ("POST", paths.BUGGY_CART_TOTAL, "high"),
+    "timezone-shift": ("GET", paths.BUGGY_SCHEDULE, "medium"),
 }
-_ALLOWED_SEVERITY = {"pagination-off-by-one": "low", "cart-total-wrong": "high", "timezone-shift": "medium"}
 
 
 def perfect_bug_report(bug_id: str = "cart-total-wrong", severity: str | None = None) -> dict[str, Any]:
-    method, path = _BUG_ENDPOINTS.get(bug_id, ("GET", "/buggy"))
+    method, full_path, allowed = _BUGS.get(bug_id, ("GET", paths.BUGGY, "medium"))
+    path = full_path.removeprefix(paths.BASE)
     return {
         "bug_id": bug_id,
         "title": f"{method} {path} returns a wrong result",
         "steps": ["Open the Buggy API catalog", f"Call {method} {path} with the documented example"],
         "expected": "The documented, mathematically correct result",
         "actual": "A result that differs from the documented one",
-        "severity": severity or _ALLOWED_SEVERITY.get(bug_id, "medium"),
+        "severity": severity or allowed,
     }
 
 
@@ -162,7 +197,17 @@ _BUG_REPORT_VARIANTS = {
 
 
 def bug_report(variant: str) -> dict[str, Any]:
-    assert variant in _BUG_REPORT_VARIANTS, (
-        f"unknown variant '{variant}', expected one of {sorted(_BUG_REPORT_VARIANTS)}"
-    )
-    return _BUG_REPORT_VARIANTS[variant](perfect_bug_report())
+    return choose(_BUG_REPORT_VARIANTS, variant, "bug report variant")(perfect_bug_report())
+
+
+# ─── Buggy cart (POST /buggy/cart/total) ───────────────────────────────────
+
+
+def cart(spec: str) -> CartReq:
+    """`10x2, 5.50x3` → two positions: price 10 × qty 2, price 5.50 × qty 3."""
+    positions = (position.strip().split("x") for position in spec.split(","))
+    return CartReq(items=[CartItem(price=float(price), qty=int(qty)) for price, qty in positions])
+
+
+def cart_of(count: int) -> CartReq:
+    return CartReq(items=[CartItem(price=1, qty=1)] * count)

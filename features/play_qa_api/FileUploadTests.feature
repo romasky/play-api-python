@@ -9,8 +9,7 @@ Feature: File Upload (POST /files/upload)
 
   @Run @Smoke @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: Upload a PNG with a token — owner user, sniffed type, 24 h lifetime
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When Upload sample "tiny.png" with token "token" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "owner" equals "user" in response "response"

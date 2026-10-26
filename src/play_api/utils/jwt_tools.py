@@ -20,15 +20,17 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from play_api.utils.lookup import choose
+
 _WRONG_SECRET = b"not-the-server-secret"
 
 
-def b64url(data: bytes) -> str:
+def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
 def _b64url_json(obj: Any) -> str:
-    return b64url(json.dumps(obj, separators=(",", ":")).encode())
+    return _b64url(json.dumps(obj, separators=(",", ":")).encode())
 
 
 def _unb64url(segment: str) -> bytes:
@@ -41,11 +43,12 @@ def parts(token: str) -> tuple[dict[str, Any], dict[str, Any]]:
     return json.loads(_unb64url(header)), json.loads(_unb64url(payload))
 
 
-def sign(header: dict[str, Any], payload: dict[str, Any], secret: bytes = _WRONG_SECRET) -> str:
+def _sign(header: dict[str, Any], payload: dict[str, Any]) -> str:
+    """HMAC with a secret that is NOT the server's — every token built here fails signature checks."""
     signing_input = f"{_b64url_json(header)}.{_b64url_json(payload)}"
     digest = hashlib.sha512 if header.get("alg") == "HS512" else hashlib.sha256
-    signature = hmac.new(secret, signing_input.encode(), digest).digest()
-    return f"{signing_input}.{b64url(signature)}"
+    signature = hmac.new(_WRONG_SECRET, signing_input.encode(), digest).digest()
+    return f"{signing_input}.{_b64url(signature)}"
 
 
 def _with_payload(token: str, **changes: Any) -> str:
@@ -63,21 +66,21 @@ def _alg_none(token: str) -> str:
 def _expired(token: str) -> str:
     header, payload = parts(token)
     now = int(time.time())
-    return sign(header, {**payload, "iat": now - 7200, "exp": now - 3600})
+    return _sign(header, {**payload, "iat": now - 7200, "exp": now - 3600})
 
 
 def _claims_only(token: str, **changes: Any) -> str:
     header, payload = parts(token)
     payload = {k: v for k, v in {**payload, **changes}.items() if v is not None}
-    return sign(header, payload)
+    return _sign(header, payload)
 
 
 _KINDS: dict[str, Callable[[str], str]] = {
     # wrong signature
-    "wrong secret": lambda t: sign(*parts(t)),
+    "wrong secret": lambda t: _sign(*parts(t)),
     "tampered payload": lambda t: _with_payload(t, email="attacker@play-qa.com"),
     "alg none": _alg_none,
-    "alg HS512": lambda t: sign({**parts(t)[0], "alg": "HS512"}, parts(t)[1]),
+    "alg HS512": lambda t: _sign({**parts(t)[0], "alg": "HS512"}, parts(t)[1]),
     "forged expired": _expired,
     # malformed
     "one segment": lambda t: t.split(".")[0],
@@ -86,8 +89,8 @@ _KINDS: dict[str, Callable[[str], str]] = {
     "garbage": lambda _t: "not-a-jwt-at-all",
     "padded": lambda t: f"{t}==",
     "bad base64": lambda t: "!!!." + t.split(".", 1)[1],
-    "non-JSON payload": lambda t: f"{t.split('.')[0]}.{b64url(b'not json')}.{t.split('.')[2]}",
-    "oversized": lambda t: f"{t.split('.')[0]}.{b64url(b'x' * 6300)}.{t.split('.')[2]}",  # ≈ 8.4 KiB < CF 520
+    "non-JSON payload": lambda t: f"{t.split('.')[0]}.{_b64url(b'not json')}.{t.split('.')[2]}",
+    "oversized": lambda t: f"{t.split('.')[0]}.{_b64url(b'x' * 6300)}.{t.split('.')[2]}",  # ≈ 8.4 KiB < CF 520
     "opaque": lambda _t: "usr_1700000000_0123456789abcdef0123456789abcdef",
     # decode-only shapes
     "no exp": lambda t: _claims_only(t, exp=None),
@@ -97,5 +100,4 @@ _KINDS: dict[str, Callable[[str], str]] = {
 
 
 def craft(kind: str, genuine: str) -> str:
-    assert kind in _KINDS, f"unknown JWT kind '{kind}', expected one of {list(_KINDS)}"
-    return _KINDS[kind](genuine)
+    return choose(_KINDS, kind, "JWT kind")(genuine)

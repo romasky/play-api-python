@@ -19,8 +19,7 @@ Feature: Bug Reports (POST/GET /bug-reports, auto-scored)
 
   @Run @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: An authenticated report is saved (201) with a report id and a 24 h lifetime
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When Submit a perfect "pagination-off-by-one" bug report with token "token" and save response as "response"
     Then Get and check status code 201 from "response"
     And Assert field "owner" equals "user" in response "response"
@@ -58,10 +57,8 @@ Feature: Bug Reports (POST/GET /bug-reports, auto-scored)
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Saved reports are listed and readable by their owner only
-    Given Create minimal user and save response as "ownerRes"
-    And Extract "access_token" from "ownerRes" and save as "ownerToken"
-    And Create minimal user and save response as "otherRes"
-    And Extract "access_token" from "otherRes" and save as "otherToken"
+    Given a user with token "ownerToken"
+    And a user with token "otherToken"
     When Submit a perfect "timezone-shift" bug report with token "ownerToken" and save response as "submitRes"
     And Extract "report_id" from "submitRes" and save as "reportId"
     And Submit a perfect "timezone-shift" bug report anonymously and save response as "anonRes"
@@ -141,8 +138,7 @@ Feature: Bug Reports (POST/GET /bug-reports, auto-scored)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Listing my reports with <query> returns 400 VALIDATION_ERROR
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When List my bug reports with query "<query>" and token "token" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"
@@ -160,8 +156,7 @@ Feature: Bug Reports (POST/GET /bug-reports, auto-scored)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Reading a <label> report id returns 404 REPORT_NOT_FOUND
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "token"
+    Given a user with token "token"
     When Get bug report "<id>" with token "token" and save response as "response"
     Then Get and check status code 404 from "response"
     And Assert error code is "REPORT_NOT_FOUND" in response "response"

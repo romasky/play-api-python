@@ -46,8 +46,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
   Scenario Outline: Admin <route> with a valid user token returns 403 ADMIN_REQUIRED
-    Given Create minimal user and save response as "userRes"
-    And Extract "access_token" from "userRes" and save as "userToken"
+    Given a user with token "userToken"
     When Send admin "<route>" request with token "userToken" and save response as "response"
     Then Get and check status code 403 from "response"
     And Assert error code is "ADMIN_REQUIRED" in response "response"
@@ -62,8 +61,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Smoke @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: Admin stats are consistent and count the caller as an admin
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Get admin stats with token "adminToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert admin stats are consistent in "response"
@@ -73,8 +71,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: Admin users rows carry has_active_token and never access_token or last_login_ip
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Get admin users with query "limit=20" and token "adminToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert every item of "users" has field "has_active_token" in response "response"
@@ -89,8 +86,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
     And Create user in country "country" and save response as "userRes"
     And Extract "id" from "userRes" and save as "userId"
     And Extract "access_token" from "userRes" and save as "userToken"
-    And Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    And an admin with token "adminToken"
     When Get admin users with query "filter=address.country:${country}" and token "adminToken" and save response as "beforeRes"
     Then Assert field "users.0.has_active_token" equals "true" in response "beforeRes"
     When Logout user "userId" with token "userToken" and save response as "logoutRes"
@@ -101,8 +97,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario Outline: Admin users honours <label>
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Get admin users with query "<query>" and token "adminToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert field "per_page" equals "<per_page>" in response "response"
@@ -123,8 +118,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Admin users with <query> returns 400 <code> (same validation as /users/list)
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Get admin users with query "<query>" and token "adminToken" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "<code>" in response "response"
@@ -141,9 +135,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Positive @allure.label.story:Positive_Scenario
   Scenario: Setting the own role to admin is an idempotent no-op
-    Given Create admin user and save response as "adminRes"
-    And Extract "id" from "adminRes" and save as "adminId"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with id "adminId" and token "adminToken"
     When Set role "admin" for user "adminId" with token "adminToken" and save response as "response"
     Then Get and check status code 200 from "response"
     And Assert user response has all core fields in "response"
@@ -153,16 +145,14 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
   Scenario: Setting the role of another user returns 403 FORBIDDEN
     Given Create minimal user and save response as "userRes"
     And Extract "id" from "userRes" and save as "userId"
-    And Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    And an admin with token "adminToken"
     When Set role "admin" for user "userId" with token "adminToken" and save response as "response"
     Then Get and check status code 403 from "response"
     And Assert error code is "FORBIDDEN" in response "response"
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Setting the role of a <label> id returns 403 FORBIDDEN, never 404
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with token "adminToken"
     When Set role "user" for user "<id>" with token "adminToken" and save response as "response"
     Then Get and check status code 403 from "response"
     And Assert error code is "FORBIDDEN" in response "response"
@@ -173,9 +163,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario Outline: Setting the own role to <body> returns 400 VALIDATION_ERROR
-    Given Create admin user and save response as "adminRes"
-    And Extract "id" from "adminRes" and save as "adminId"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with id "adminId" and token "adminToken"
     When Set role for user "adminId" with raw body "<body>" token "adminToken" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"
@@ -189,9 +177,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Flow @allure.label.severity:critical @allure.label.story:End_to_End_Flow
   Scenario: Self-demotion is irreversible — the same token loses admin access
-    Given Create admin user and save response as "adminRes"
-    And Extract "id" from "adminRes" and save as "adminId"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with id "adminId" and token "adminToken"
     When Set role "user" for user "adminId" with token "adminToken" and save response as "demoteRes"
     Then Get and check status code 200 from "demoteRes"
     And Assert field "metadata.role" equals "user" in response "demoteRes"
@@ -208,8 +194,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
   Scenario Outline: Admin deleting a <label> account returns 403 FORBIDDEN
     Given Create minimal user and save response as "userRes"
     And Extract "id" from "userRes" and save as "otherUserId"
-    And Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    And an admin with token "adminToken"
     When Admin delete user "<id>" with token "adminToken" and save response as "response"
     Then Get and check status code 403 from "response"
     And Assert error code is "FORBIDDEN" in response "response"
@@ -221,9 +206,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Flow @allure.label.severity:critical @allure.label.story:End_to_End_Flow
   Scenario: Admin deletes its own account — 204, then its token and the account are gone
-    Given Create admin user and save response as "adminRes"
-    And Extract "id" from "adminRes" and save as "adminId"
-    And Extract "access_token" from "adminRes" and save as "adminToken"
+    Given an admin with id "adminId" and token "adminToken"
     When Admin delete user "adminId" with token "adminToken" and save response as "deleteRes"
     Then Get and check status code 204 from "deleteRes"
     And Assert response body is empty in "deleteRes"
@@ -236,8 +219,7 @@ Feature: Admin endpoints (/admin/stats, /admin/users, role, delete)
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Admin re-login keeps the role — the old token is revoked, the new one works
-    Given Create admin user and save response as "adminRes"
-    And Extract "access_token" from "adminRes" and save as "oldToken"
+    Given an admin with token "oldToken"
     When Login with "generatedEmail" and "generatedPassword" and save response as "loginRes"
     Then Get and check status code 200 from "loginRes"
     And Extract "access_token" from "loginRes" and save as "newToken"

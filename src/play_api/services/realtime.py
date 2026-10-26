@@ -46,10 +46,35 @@ def sse_progress_response(params: Params) -> httpx.Response:
     return client.get(paths.SSE_PROGRESS, params=params)
 
 
-def ws_connect() -> ClientConnection:
+class WsSession:
+    """One WebSocket connection; every frame sent or received is its own Allure step."""
+
+    def __init__(self, connection: ClientConnection) -> None:
+        self._connection = connection
+
+    def receive_json(self) -> dict[str, Any]:
+        with allure.step("WebSocket receive (JSON)"):
+            frame = self._connection.recv(timeout=settings.request_timeout)
+            allure.attach(str(frame), "Frame", allure.attachment_type.TEXT)
+            parsed: dict[str, Any] = json.loads(frame)
+            return parsed
+
+    def echo(self, frame: str | bytes) -> str | bytes:
+        """Send one frame and return the reply (same frame type expected)."""
+        with allure.step(f"WebSocket echo ({'binary' if isinstance(frame, bytes) else 'text'})"):
+            self._connection.send(frame)
+            reply = self._connection.recv(timeout=settings.request_timeout)
+            allure.attach(repr(reply), "Reply", allure.attachment_type.TEXT)
+            return reply
+
+    def close(self) -> None:
+        self._connection.close()
+
+
+def ws_connect() -> WsSession:
     url = settings.base_url.replace("https://", "wss://", 1).replace("http://", "ws://", 1) + paths.WS_ECHO
     with allure.step(f"WebSocket connect {paths.WS_ECHO}"):
-        return connect(url, open_timeout=settings.request_timeout)
+        return WsSession(connect(url, open_timeout=settings.request_timeout))
 
 
 def ws_plain_get() -> httpx.Response:

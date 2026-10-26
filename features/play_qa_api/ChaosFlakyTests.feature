@@ -6,6 +6,7 @@ Feature: Chaos — seeded flakiness (GET /chaos/flaky, /flaky/sequence, /flaky/s
   # The flaky body is returned on EVERY status, even a 4xx/5xx from the roll (no error envelope then).
   # seed=20 is stable: flaky → 500; sequence (count 10) → 500,500,200,200,500,200,500,200,200,200.
 
+  # @Positive on purpose: the 500 is the planned outcome of seed 20 — reproducing it is the feature
   @Run @Smoke @Positive @allure.label.severity:critical @allure.label.story:Positive_Scenario
   Scenario: A seeded roll is reproducible
     When Get chaos flaky with query "seed=20" and save response as "first"

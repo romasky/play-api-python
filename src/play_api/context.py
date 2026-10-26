@@ -72,6 +72,10 @@ class ScenarioContext:
             return key  # passthrough: literal string
         return value
 
+    def require(self, key: str) -> Any:
+        """The stored value; fails loudly when a previous step did not save it."""
+        return self.get(key, fail_if_missing=True)
+
     def opt(self, key: str) -> Any | None:
         clean, is_global = self._split(key)
         return self._global.get(clean) if is_global else self._local.get(clean, self._global.get(clean))

@@ -12,15 +12,16 @@ steps use the keyword-agnostic `@step`; pure assertions stay `@then`.
 from __future__ import annotations
 
 import re
-from datetime import date
 
 from pytest_bdd import parsers, step, then
 
-from play_api.assertions import assert_every_item, assert_every_item_equals, assert_sorted, items, link, render
-from play_api.models.responses.base import assert_has_request_id
+from play_api.assertions import as_text, assert_every_item, assert_every_item_equals, assert_sorted, items, link
+from play_api.models.responses.auth import assert_login_successful
+from play_api.models.responses.base import assert_error_code, assert_has_request_id
+from play_api.models.responses.users import UserResponse
 from play_api.utils import generator as gen
 from play_api.utils.json_path import get_path, has_path
-from tests.steps.parsing import quoted
+from tests.steps.support import quoted
 
 # ─── Data generation ───────────────────────────────────────────────────────
 
@@ -28,11 +29,6 @@ from tests.steps.parsing import quoted
 @step(parsers.parse('Save string "{value}" as "{key}"'))
 def save_string(ctx, value, key):
     ctx.save(key, value)
-
-
-@step(parsers.parse('Save context value "{src_key}" as "{dest_key}"'))
-def save_context_value(ctx, src_key, dest_key):
-    ctx.save(dest_key, ctx.get(src_key, fail_if_missing=True))
 
 
 @step(parsers.parse('Generate email and save as "{key}"'))
@@ -80,11 +76,6 @@ def generate_invalid_email(ctx, key):
     ctx.save(key, gen.invalid_email())
 
 
-@step(parsers.parse('Generate short password and save as "{key}"'))
-def generate_short_password(ctx, key):
-    ctx.save(key, gen.short_password())
-
-
 @step(parsers.parse('Generate fake mongo id and save as "{key}"'))
 def generate_fake_mongo_id(ctx, key):
     ctx.save(key, gen.fake_mongo_id())
@@ -93,11 +84,6 @@ def generate_fake_mongo_id(ctx, key):
 @step(parsers.parse('Generate fake uuid and save as "{key}"'))
 def generate_fake_uuid(ctx, key):
     ctx.save(key, gen.fake_uuid())
-
-
-@step(parsers.parse('Generate phone number and save as "{key}"'))
-def generate_phone_number(ctx, key):
-    ctx.save(key, gen.phone_number())
 
 
 @step(parsers.parse('Generate local part and save as "{key}"'))
@@ -113,11 +99,6 @@ def generate_local_part_underscore_hyphen(ctx, key):
 @step(parsers.parse('Generate string of length {n:d} and save as "{key}"'))
 def generate_string_of_length(ctx, n, key):
     ctx.save(key, gen.alphanumeric(n))
-
-
-@step(parsers.parse('Get current date and save as "{key}"'))
-def get_current_date(ctx, key):
-    ctx.save(key, date.today().isoformat())
 
 
 # unique address.country isolates our own users in the shared /users/list collection
@@ -146,7 +127,7 @@ def extract_field(ctx, field, var, key):
     body = ctx.body(var)
     value = get_path(body, field)
     assert value is not None, f"Field '{field}' not found in response. Body: {body}"
-    ctx.save(key, str(value))
+    ctx.save(key, as_text(value))
 
 
 # ─── Status code ───────────────────────────────────────────────────────────
@@ -162,19 +143,6 @@ def check_status_code(ctx, code, var):
 def assert_response_slow(ctx, var, seconds):
     elapsed = ctx.response(var).elapsed.total_seconds()
     assert elapsed >= seconds, f"Response took {elapsed:.2f} s, expected at least {seconds} s"
-
-
-@then(parsers.parse('Assert response is not a server error in "{var}"'))
-def assert_not_server_error(ctx, var):
-    res = ctx.response(var)
-    assert res.status_code < 500, f"Expected non-5xx status but got {res.status_code}. Body: {res.text}"
-
-
-@then(parsers.parse('Assert status code is one of "{codes}" in "{var}"'))
-def assert_status_one_of(ctx, codes, var):
-    allowed = {int(c.strip()) for c in codes.split(",")}
-    res = ctx.response(var)
-    assert res.status_code in allowed, f"Expected status in [{codes}] but got {res.status_code}. Body: {res.text}"
 
 
 # ─── Header assertions (httpx headers are case-insensitive) ────────────────
@@ -206,7 +174,7 @@ def assert_header_absent(ctx, header, var):
 
 @then(parsers.parse('Assert header "{header}" equals field "{field}" in response "{var}"'))
 def assert_header_equals_field(ctx, header, field, var):
-    actual, expected = ctx.response(var).headers.get(header), render(get_path(ctx.body(var), field))
+    actual, expected = ctx.response(var).headers.get(header), as_text(get_path(ctx.body(var), field))
     assert actual == expected, f"Header '{header}' = '{actual}' but body '{field}' = '{expected}'"
 
 
@@ -239,7 +207,7 @@ def assert_link_absent(ctx, rel, var):
 def assert_field_equals(ctx, field, expected, var):
     actual = get_path(ctx.body(var), field)
     resolved = ctx.str(expected)
-    assert render(actual) == resolved, f"Field '{field}': expected '{resolved}' but got '{actual}'"
+    assert as_text(actual) == resolved, f"Field '{field}': expected '{resolved}' but got '{actual}'"
 
 
 @then(parsers.parse('Assert field "{field}" is not null in response "{var}"'))
@@ -320,6 +288,21 @@ def assert_every_item_has_no_field(ctx, field, item_field, var):
     assert_every_item(ctx.body(var), field, item_field, present=False)
 
 
+@then(parsers.parse('Assert error code is "{code}" in response "{var}"'))
+def assert_error_code_step(ctx, code, var):
+    assert_error_code(ctx.body(var), code)
+
+
+@then(parsers.parse('Assert user response has all core fields in "{var}"'))
+def assert_user_core_fields_step(ctx, var):
+    UserResponse.check(ctx.body(var))
+
+
+@then(parsers.parse('Assert login response is successful in "{var}"'))
+def assert_login_successful_step(ctx, var):
+    assert_login_successful(ctx.body(var))
+
+
 @then(parsers.parse('Assert response body is empty in "{var}"'))
 def assert_body_empty(ctx, var):
     res = ctx.response(var)
@@ -334,21 +317,10 @@ def assert_response_has_request_id(ctx, var):
 # ─── Context value assertions ──────────────────────────────────────────────
 
 
-@then(parsers.parse('Assert "{key}" not null'))
-def assert_ctx_not_null(ctx, key):
-    assert ctx.get(key, fail_if_missing=True), f"{key} is null"
-
-
 @then(parsers.parse('Assert "{key}" equals "{expected}"'))
 def assert_ctx_equals(ctx, key, expected):
     actual, resolved = ctx.str(key), ctx.str(expected)
     assert actual == resolved, f"{key}: '{actual}' != '{resolved}'"
-
-
-@then(parsers.parse('Assert "{key}" contains "{expected}"'))
-def assert_ctx_contains(ctx, key, expected):
-    value = ctx.str(key)
-    assert expected in value, f"'{value}' does not contain '{expected}'"
 
 
 @then(parsers.parse('Assert "{key}" matches regex "{regex}"'))
@@ -358,12 +330,3 @@ def assert_ctx_matches(ctx, key, regex):
 
 
 # ─── Debug ─────────────────────────────────────────────────────────────────
-
-
-@then(parsers.parse('Print response "{var}"'))
-def print_response(ctx, var):
-    value = ctx.get(var, fail_if_missing=True)
-    if hasattr(value, "status_code"):
-        print(f"\n[{var}] HTTP {value.status_code}\n{value.text}\n")
-    else:
-        print(f"\n[{var}] = {value}\n")

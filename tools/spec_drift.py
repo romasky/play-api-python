@@ -18,26 +18,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path[:0] = [str(ROOT / "src")]
+sys.path[:0] = [str(Path(__file__).resolve().parent.parent / "src")]
 
 import httpx2 as httpx  # noqa: E402
 
+from _spec import ROOT, SNAPSHOT, iter_operations, load_snapshot  # noqa: E402
 from play_api.config import settings  # noqa: E402
 
-SNAPSHOT = ROOT / "docs" / "openapi.json"
+# Swagger is served next to the API, not under /api/v1 — so not in play_api.api.paths, and fetched directly
+# (no Allure step, no contract: this is tooling, not a test).
 SPEC_PATH = "/swagger/doc.json"
-METHODS = {"get", "put", "post", "delete", "options", "head", "patch"}
 
 
 def operations(spec: dict[str, Any]) -> dict[str, set[str]]:
     """{"GET /users/get/{id}": {"200", "401", "404", "500"}, …}"""
-    return {
-        f"{method.upper()} {path}": set(op.get("responses", {}))
-        for path, item in spec.get("paths", {}).items()
-        for method, op in item.items()
-        if method in METHODS
-    }
+    return {f"{method} {path}": set(op.get("responses", {})) for method, path, op in iter_operations(spec)}
 
 
 def diff(old: dict[str, set[str]], new: dict[str, set[str]]) -> list[str]:
@@ -65,7 +60,7 @@ def main() -> int:
         print(f"snapshot updated: {SNAPSHOT.relative_to(ROOT)} ({len(operations(live))} operations)")
         return 0
 
-    changes = diff(operations(json.loads(SNAPSHOT.read_text())), operations(live))
+    changes = diff(operations(load_snapshot()), operations(live))
     for line in changes:
         print(line)
     print(f"{len(changes)} change(s) vs {SNAPSHOT.relative_to(ROOT)}" if changes else "OK — live spec matches snapshot")

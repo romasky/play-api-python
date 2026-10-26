@@ -6,11 +6,9 @@ Feature: Challenges — solving each challenge end to end
 
   @Run @Smoke @Flow @allure.label.severity:critical @allure.label.story:End_to_End_Flow
   Scenario: Solve delete-user-404 — delete the sandbox with its own token
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "delete-user-404" with token "playerToken" and save response as "startRes"
-    And Extract "target.user_id" from "startRes" and save as "sandboxId"
-    And Extract "target.access_token" from "startRes" and save as "sandboxToken"
+    And Extract the sandbox from "startRes"
     And Verify challenge "delete-user-404" with token "playerToken" and save response as "notYet"
     Then Get and check status code 200 from "notYet"
     And Assert field "solved" equals "false" in response "notYet"
@@ -33,11 +31,9 @@ Feature: Challenges — solving each challenge end to end
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Solve logout-revokes-token — log the sandbox out
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "logout-revokes-token" with token "playerToken" and save response as "startRes"
-    And Extract "target.user_id" from "startRes" and save as "sandboxId"
-    And Extract "target.access_token" from "startRes" and save as "sandboxToken"
+    And Extract the sandbox from "startRes"
     And Logout user "sandboxId" with token "sandboxToken" and save response as "logoutRes"
     Then Get and check status code 200 from "logoutRes"
     When Verify challenge "logout-revokes-token" with token "playerToken" and save response as "response"
@@ -46,11 +42,9 @@ Feature: Challenges — solving each challenge end to end
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Solve login-rotates-token — log in as the sandbox
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "login-rotates-token" with token "playerToken" and save response as "startRes"
-    And Extract "target.email" from "startRes" and save as "sandboxEmail"
-    And Extract "target.password" from "startRes" and save as "sandboxPassword"
+    And Extract the sandbox from "startRes"
     And Login with "sandboxEmail" and "sandboxPassword" and save response as "loginRes"
     Then Get and check status code 200 from "loginRes"
     When Verify challenge "login-rotates-token" with token "playerToken" and save response as "response"
@@ -59,11 +53,9 @@ Feature: Challenges — solving each challenge end to end
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Solve patch-first-name after two hints — hints are recorded but do not cost points
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "patch-first-name" with token "playerToken" and save response as "startRes"
-    And Extract "target.user_id" from "startRes" and save as "sandboxId"
-    And Extract "target.access_token" from "startRes" and save as "sandboxToken"
+    And Extract the sandbox from "startRes"
     And Reveal hint 1 of challenge "patch-first-name" with token "playerToken" and save response as "hint1"
     And Reveal hint 2 of challenge "patch-first-name" with token "playerToken" and save response as "hint2"
     And Patch user "sandboxId" with raw body "{\"profile\":{\"first_name\":\"Playwright\",\"last_name\":\"User\"}}" token "sandboxToken" and save response as "patchRes"
@@ -77,23 +69,19 @@ Feature: Challenges — solving each challenge end to end
 
   @Run @Negative @allure.label.story:Negative_Scenario
   Scenario: The locale hint is wrong — PATCH with only first_name returns 400 (profile is validated whole)
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "patch-first-name" with token "playerToken" and save response as "startRes"
-    And Extract "target.user_id" from "startRes" and save as "sandboxId"
-    And Extract "target.access_token" from "startRes" and save as "sandboxToken"
+    And Extract the sandbox from "startRes"
     And Patch user "sandboxId" with raw body "{\"profile\":{\"first_name\":\"Playwright\"}}" token "sandboxToken" and save response as "response"
     Then Get and check status code 400 from "response"
     And Assert error code is "VALIDATION_ERROR" in response "response"
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: A missing sandbox can be reset into a new attempt
-    Given Create minimal user and save response as "playerRes"
-    And Extract "access_token" from "playerRes" and save as "playerToken"
+    Given a user with token "playerToken"
     When Start challenge "patch-first-name" with token "playerToken" and save response as "startRes"
     And Extract "attempt_id" from "startRes" and save as "firstAttempt"
-    And Extract "target.user_id" from "startRes" and save as "sandboxId"
-    And Extract "target.access_token" from "startRes" and save as "sandboxToken"
+    And Extract the sandbox from "startRes"
     And Delete user "sandboxId" with token "sandboxToken" and save response as "deleteRes"
     And Start challenge "patch-first-name" with token "playerToken" and save response as "missingRes"
     Then Get and check status code 200 from "missingRes"

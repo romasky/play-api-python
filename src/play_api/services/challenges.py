@@ -6,7 +6,7 @@ import httpx2 as httpx
 
 from play_api.api import client, paths
 from play_api.api.client import Headers, Params
-from play_api.services import JsonBody, to_json
+from play_api.services import JsonBody
 
 
 def catalog(params: Params | None = None) -> httpx.Response:
@@ -22,12 +22,12 @@ def hints(challenge_id: str) -> httpx.Response:
 
 
 def reveal(challenge_id: str, body: JsonBody, headers: Headers) -> httpx.Response:
-    return client.post(paths.challenge_reveal(challenge_id), to_json(body), headers)
+    return client.post(paths.challenge_reveal(challenge_id), body, headers=headers)
 
 
 def start(challenge_id: str, headers: Headers, params: Params | None = None) -> httpx.Response:
-    return client.request("POST", paths.challenge_start(challenge_id), params=params, headers=headers)
+    return client.post(paths.challenge_start(challenge_id), params=params, headers=headers)
 
 
 def verify(challenge_id: str, headers: Headers, body: JsonBody = None) -> httpx.Response:
-    return client.post(paths.challenge_verify(challenge_id), to_json(body), headers)
+    return client.post(paths.challenge_verify(challenge_id), body, headers=headers)

@@ -9,7 +9,8 @@ from urllib.parse import parse_qsl
 
 from play_api.api.client import RawJson
 
-_ESCAPED_QUOTE = re.compile(r'\\+"')
+# `\"` in step text, `\\"` in an Examples cell — exactly those two forms, nothing longer
+_ESCAPED_QUOTE = re.compile(r'\\{1,2}"')
 
 
 def raw_json(text: str) -> Any:
@@ -17,17 +18,17 @@ def raw_json(text: str) -> Any:
 
     Cucumber's `{string}` type unescapes `\\"` inside the quotes; pytest-bdd passes the Gherkin
     text as written (`{\\"email\\":\\"x\\"}`), so undo that escaping before `json.loads`. Inside an
-    Examples table cell the same `\\"` arrives with a DOUBLED backslash, so any run of backslashes in
-    front of a quote collapses (the payloads never need a literal `\\"` inside a JSON string).
+    Examples table cell the same `\\"` arrives with a DOUBLED backslash; both forms are unescaped.
 
-    Text that is not valid JSON (a truncated body on purpose) comes back as `RawJson`, which the
-    client sends byte-for-byte instead of re-serialising.
+    Text that is not valid JSON (a truncated body on purpose) — and `null`, which the client would
+    otherwise read as "no body" — comes back as `RawJson`, sent byte-for-byte.
     """
     text = unescape_quotes(text)
     try:
-        return json.loads(text)
+        value = json.loads(text)
     except ValueError:
         return RawJson(text)
+    return RawJson(text) if value is None else value
 
 
 def unescape_quotes(text: str) -> str:

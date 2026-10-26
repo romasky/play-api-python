@@ -30,7 +30,7 @@ def upload(
 
 def upload_json(body: dict[str, str], headers: Headers) -> httpx.Response:
     """Not multipart at all → INVALID_MULTIPART."""
-    return client.post(paths.FILES_UPLOAD, body, headers)
+    return client.post(paths.FILES_UPLOAD, body, headers=headers)
 
 
 def list_mine(headers: Headers, params: Params | None = None) -> httpx.Response:
@@ -46,4 +46,4 @@ def download(file_id: str, params: Params | None = None) -> httpx.Response:
 
 
 def delete(file_id: str, headers: Headers) -> httpx.Response:
-    return client.delete(paths.file(file_id), headers)
+    return client.delete(paths.file(file_id), headers=headers)

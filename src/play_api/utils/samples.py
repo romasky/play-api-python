@@ -7,8 +7,9 @@ that by at most 64 KiB.
 
 from __future__ import annotations
 
-import base64
 import zlib
+
+from play_api.utils.lookup import choose
 
 FILE_LIMIT = 5 * 1024 * 1024
 WEBHOOK_BODY_LIMIT = 64 * 1024
@@ -50,10 +51,5 @@ _SIZED: dict[str, int] = {
 def sample(name: str) -> tuple[str, bytes, str]:
     if name in _SIZED:
         return name, b"a" * _SIZED[name], "text/plain"
-    assert name in _SAMPLES, f"unknown sample '{name}', expected one of {sorted([*_SAMPLES, *_SIZED])}"
-    content, content_type = _SAMPLES[name]
+    content, content_type = choose(_SAMPLES, name, f"sample (or one of {sorted(_SIZED)})")
     return name, content, content_type
-
-
-def b64(data: bytes) -> str:
-    return base64.b64encode(data).decode()

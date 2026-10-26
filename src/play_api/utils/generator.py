@@ -18,8 +18,6 @@ _faker = Faker("en_US")
 
 LATIN = string.ascii_lowercase
 NUMERIC = string.digits
-SPECIAL = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-CYRILLIC = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 
 
 def random_from(chars: str, length: int) -> str:
@@ -78,10 +76,6 @@ def invalid_email() -> str:
     return f"notanemail_{alphanumeric(4)}"
 
 
-def short_password() -> str:
-    return alphanumeric(4)
-
-
 def fake_mongo_id() -> str:
     return random_from(NUMERIC, 24)
 
@@ -95,20 +89,6 @@ def fake_uuid() -> str:
     return f"00000000-0000-0000-0000-{random_from(NUMERIC, 12)}"
 
 
-def text(
-    length: int,
-    *,
-    cyrillic: bool = False,
-    latin: bool = True,
-    numeric: bool = False,
-    spaces: bool = False,
-    special: bool = False,
-) -> str:
-    pool = (
-        (LATIN if latin else "")
-        + (NUMERIC if numeric else "")
-        + (SPECIAL if special else "")
-        + (" " if spaces else "")
-        + (CYRILLIC if cyrillic else "")
-    )
-    return random_from(pool or LATIN, length)
+def text(length: int) -> str:
+    """Latin letters and spaces — e.g. a bio of an exact length."""
+    return random_from(LATIN + " ", length)

@@ -9,11 +9,15 @@ import hashlib
 import hmac
 import time
 
+from play_api.utils.lookup import choose
 
-def signature(secret: str, body: str, timestamp: int | None = None) -> str:
-    t = int(time.time()) if timestamp is None else timestamp
-    digest = hmac.new(secret.encode(), f"{t}.{body}".encode(), hashlib.sha256).hexdigest()
-    return f"t={t},v1={digest}"
+# the payload the signature scenarios send (signed over these exact bytes)
+SIGNED_BODY = '{"event":"signed"}'
+
+
+def signature(secret: str, body: str, timestamp: int) -> str:
+    digest = hmac.new(secret.encode(), f"{timestamp}.{body}".encode(), hashlib.sha256).hexdigest()
+    return f"t={timestamp},v1={digest}"
 
 
 def header_for(kind: str, secret: str, body: str) -> dict[str, str]:
@@ -29,5 +33,4 @@ def header_for(kind: str, secret: str, body: str) -> dict[str, str]:
     }
     if kind == "none":
         return {}
-    assert kind in values, f"unknown signature kind '{kind}', expected none or one of {sorted(values)}"
-    return {"X-PlayQA-Signature": values[kind]}
+    return {"X-PlayQA-Signature": choose(values, kind, "signature kind (or none)")}

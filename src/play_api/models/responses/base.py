@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class Contract(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    # strict: an int field rejects "900", a bool rejects "true" / 1 (an int still satisfies a float field)
+    model_config = ConfigDict(extra="allow", strict=True)
 
     @classmethod
     def check(cls, body: Any) -> Self:
