@@ -2,9 +2,9 @@
 
 from pytest_bdd import parsers, when
 
-from play_api.api import client, paths
+from play_api.services import users
 
 
 @when(parsers.parse('Send OPTIONS users request and save response as "{var}"'))
 def options_users(ctx, var):
-    ctx.save(var, client.options(paths.USERS_OPTIONS))
+    ctx.save(var, users.options())

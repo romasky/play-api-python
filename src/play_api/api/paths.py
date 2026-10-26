@@ -6,9 +6,20 @@ HEALTH = f"{BASE}/health"
 LOGIN = f"{BASE}/login"
 AUTH_BASIC = f"{BASE}/auth/basic"
 USERS_CREATE = f"{BASE}/users/create"
+USERS_CREATE_ADMIN = f"{BASE}/users/create-admin"
 USERS_LIST = f"{BASE}/users/list"
 USERS_OPTIONS = f"{BASE}/users/options"
 MAIL_CREATE = f"{BASE}/mail/create"
+ADMIN_STATS = f"{BASE}/admin/stats"
+ADMIN_USERS = f"{BASE}/admin/users"
+
+
+def admin_user(user_id: str) -> str:
+    return f"{BASE}/admin/users/{user_id}"
+
+
+def admin_user_role(user_id: str) -> str:
+    return f"{BASE}/admin/users/{user_id}/role"
 
 
 def users_get(user_id: str) -> str:
@@ -49,7 +60,3 @@ def mail_message(token: str, message_id: str) -> str:
 
 def mail_send(token: str) -> str:
     return f"{BASE}/mail/{token}/send"
-
-
-def mail_delete(token: str) -> str:
-    return f"{BASE}/mail/{token}"

@@ -92,6 +92,16 @@ class CreateUserReq(_Body):
     settings: SettingsReq | None = None
 
 
+class CreateAdminReq(CreateUserReq):
+    """POST /users/create-admin — the create body plus the seed code (≤ 128 chars)."""
+
+    seed_code: str | None = None
+
+
+class SetRoleReq(_Body):
+    role: str
+
+
 class LoginReq(_Body):
     email: str
     password: str

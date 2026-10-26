@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     base_url: str = "https://www.play-qa.com"
     # One deadline for connect + read, in SECONDS (httpx convention). No separate connect timeout on purpose.
     request_timeout: float = 20.0
+    # Published on purpose in the play-qa.com UI (RolePermissionMatrix); overridable for other deployments.
+    admin_seed_code: str = "play-qa-admin"
 
 
 settings = Settings()

@@ -86,6 +86,11 @@ def fake_mongo_id() -> str:
     return random_from(NUMERIC, 24)
 
 
+def unique_country() -> str:
+    """A random exact-match `address.country` (1-64 chars) — no other client of the shared API uses it."""
+    return f"Country{alphanumeric(12)}"
+
+
 def fake_uuid() -> str:
     return f"00000000-0000-0000-0000-{random_from(NUMERIC, 12)}"
 

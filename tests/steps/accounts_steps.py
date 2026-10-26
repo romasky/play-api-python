@@ -1,21 +1,18 @@
-"""User / login / logout steps — port of src/steps/accountsSteps.js.
+"""User / login / logout steps — port of src/steps/accountsSteps.js, on top of `play_api.services`.
 
-The three Authorization variants are the heart of the negative coverage (see CLAUDE.md):
-  auth.bearer(ctx, key) → "Bearer <token>"   wrong/revoked token → INVALID_TOKEN
-  auth.raw(value)       → verbatim value     malformed           → INVALID_TOKEN_FORMAT
-  auth.none()           → no header          missing             → MISSING_TOKEN
-
-Rate-limit pacing lives in tests/conftest.py (`_rate_limit_pacing`), not here.
+Steps resolve context keys and build bodies; the services own paths and HTTP. Authorization
+variants come from `play_api.api.auth` (bearer / raw / none — see its docstring).
+Rate-limit pacing lives in `play_api.pacing`, not here.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from pytest_bdd import given, parsers, step, then, when
 
-from pytest_bdd import given, parsers, then, when
-
-from play_api.api import client, paths
+from play_api.api import auth
+from play_api.assertions import assert_total_pages
 from play_api.context import ScenarioContext
+from play_api.models import factories
 from play_api.models.requests import (
     AddressReq,
     ContactsReq,
@@ -25,54 +22,28 @@ from play_api.models.requests import (
     ProfileReq,
     SettingsReq,
 )
-from play_api.models.responses import (
+from play_api.models.responses.base import assert_error_code
+from play_api.models.responses.users import (
+    UserResponse,
     UsersListResponse,
-    assert_error_code,
     assert_list_items_have_no_field,
     assert_login_successful,
-    assert_user_core_fields,
 )
+from play_api.services import session, users
 from play_api.utils import generator as gen
-from play_api.utils.gherkin import raw_json
-
-
-class auth:
-    @staticmethod
-    def bearer(ctx, token_key: str) -> dict[str, str]:
-        return {"Authorization": client.bearer_header(ctx.str(token_key))}
-
-    @staticmethod
-    def raw(value: str) -> dict[str, str]:
-        return {"Authorization": value}
-
-    @staticmethod
-    def none() -> dict[str, str]:
-        return {}
-
+from play_api.utils.gherkin import query_pairs, raw_json
+from tests.steps.parsing import quoted
 
 # ─── Request-body builders ─────────────────────────────────────────────────
 
 
-def _minimal_profile() -> ProfileReq:
-    return ProfileReq(first_name=gen.first_name(), last_name=gen.last_name())
-
-
-def _random_update_body() -> dict[str, Any]:
-    """Valid random body for scenarios that test auth, not payload validation."""
-    return CreateUserReq(email=gen.email(), username=gen.username(), profile=_minimal_profile()).to_body()
-
-
-def _random_patch_body() -> dict[str, Any]:
-    return {"username": gen.username()}
-
-
-def _context_profile(ctx) -> ProfileReq:
+def _context_profile(ctx: ScenarioContext) -> ProfileReq:
     return ProfileReq(first_name=ctx.str("firstName"), last_name=ctx.str("lastName"))
 
 
-def _context_update_body(ctx: ScenarioContext) -> dict[str, Any]:
+def _context_update_body(ctx: ScenarioContext) -> CreateUserReq:
     """Body assembled from context variables set by earlier Given steps."""
-    return CreateUserReq(email=ctx.str("email"), username=ctx.str("username"), profile=_context_profile(ctx)).to_body()
+    return CreateUserReq(email=ctx.str("email"), username=ctx.str("username"), profile=_context_profile(ctx))
 
 
 def _opt_model(ctx, key: str, model):
@@ -83,13 +54,54 @@ def _opt_model(ctx, key: str, model):
 # ─── Create user ───────────────────────────────────────────────────────────
 
 
+def _create_and_remember(ctx, body, create, var):
+    """POST the body; remember its credentials as generatedEmail / generatedPassword for later Login steps."""
+    ctx.save(var, create(body))
+    ctx.save("generatedEmail", body.email)
+    ctx.save("generatedPassword", body.password)
+
+
 @given(parsers.parse('Create minimal user and save response as "{var}"'))
 def create_minimal_user(ctx, var):
-    email, password = gen.email(), gen.password()
-    body = CreateUserReq(email=email, username=gen.username(), password=password, profile=_minimal_profile())
-    ctx.save(var, client.post(paths.USERS_CREATE, body.to_body()))
-    ctx.save("generatedEmail", email)
-    ctx.save("generatedPassword", password)
+    _create_and_remember(ctx, factories.minimal_user(), users.create, var)
+
+
+@step(parsers.parse('Create user in country "{country_key}" and save response as "{var}"'))
+def create_user_in_country(ctx, country_key, var):
+    _create_and_remember(ctx, factories.minimal_user(country=ctx.str(country_key)), users.create, var)
+
+
+# ─── Create admin (POST /users/create-admin) ───────────────────────────────
+
+
+@step(parsers.parse('Create admin user and save response as "{var}"'))
+def create_admin_user(ctx, var):
+    _create_and_remember(ctx, factories.admin(), users.create_admin, var)
+
+
+@when(quoted('Create admin with seed code "{seed}" and save response as "{var}"'))
+def create_admin_with_seed(ctx, seed, var):
+    ctx.save(var, users.create_admin(factories.admin(seed_code=ctx.str(seed))))
+
+
+@when(parsers.parse('Create admin without seed code and save response as "{var}"'))
+def create_admin_without_seed(ctx, var):
+    ctx.save(var, users.create_admin(factories.admin(seed_code=None)))
+
+
+@when(quoted('Create admin with email "{email_key}" and the published seed code and save response as "{var}"'))
+def create_admin_with_email(ctx, email_key, var):
+    ctx.save(var, users.create_admin(factories.admin(email=ctx.str(email_key))))
+
+
+@when(quoted('Create admin with email "{email_key}" and seed code "{seed}" and save response as "{var}"'))
+def create_admin_with_email_and_seed(ctx, email_key, seed, var):
+    ctx.save(var, users.create_admin(factories.admin(seed_code=ctx.str(seed), email=ctx.str(email_key))))
+
+
+@when(parsers.parse('Create admin with raw body "{raw}" and save response as "{var}"'))
+def create_admin_raw(ctx, raw, var):
+    ctx.save(var, users.create_admin(raw_json(ctx.render(raw))))
 
 
 @when(parsers.parse('Create user with body and save response as "{var}"'))
@@ -100,7 +112,7 @@ def create_user_with_body(ctx, var):
         password=ctx.str("password"),
         profile=_context_profile(ctx),
     )
-    ctx.save(var, client.post(paths.USERS_CREATE, body.to_body()))
+    ctx.save(var, users.create(body))
 
 
 @when(parsers.parse('Create user with full body and save response as "{var}"'))
@@ -123,66 +135,17 @@ def create_user_with_full_body(ctx, var):
         employment=_opt_model(ctx, "employment", EmploymentReq),
         settings=_opt_model(ctx, "settings", SettingsReq),
     )
-    ctx.save(var, client.post(paths.USERS_CREATE, body.to_body()))
+    ctx.save(var, users.create(body))
 
 
 @when(parsers.parse('Create user with all optional fields and save response as "{var}"'))
 def create_user_all_optional(ctx, var):
-    body = CreateUserReq(
-        email=gen.email(),
-        username=gen.username(),
-        password=gen.password(),
-        profile=ProfileReq(
-            first_name=gen.first_name(),
-            last_name=gen.last_name(),
-            middle_name="Michael",
-            gender="other",
-            bio="Short bio here.",
-            date_of_birth="1990-01-15",
-            interests=["coding", "travel"],
-            avatar_url="https://example.com/avatar.jpg",
-        ),
-        contacts=ContactsReq(
-            phone=gen.phone_number(),
-            telegram="@tester",
-            whatsapp=gen.phone_number(),
-            linkedin="https://linkedin.com/in/tester",
-            github="https://github.com/tester",
-            website="https://tester.dev",
-        ),
-        address=AddressReq(
-            country="US",
-            state="California",
-            city="San Francisco",
-            street="Market St",
-            building="100",
-            apartment="5A",
-            zip_code="94105",
-            coordinates={"latitude": 37.7749, "longitude": -122.4194},
-        ),
-        employment=EmploymentReq(
-            status="employed",
-            company="Acme Inc",
-            position="Engineer",
-            department="R&D",
-            start_date="2020-03-01",
-            salary={"amount": 120000, "currency": "USD"},
-        ),
-        settings=SettingsReq(
-            language="en",
-            timezone="America/Los_Angeles",
-            theme="dark",
-            notifications_enabled=True,
-            two_factor_enabled=False,
-            private_profile=False,
-        ),
-    )
-    ctx.save(var, client.post(paths.USERS_CREATE, body.to_body()))
+    ctx.save(var, users.create(factories.user_with_all_optional_fields()))
 
 
 @when(parsers.parse('Create user with raw body "{raw}" and save response as "{var}"'))
 def create_user_raw(ctx, raw, var):
-    ctx.save(var, client.post(paths.USERS_CREATE, raw_json(raw)))
+    ctx.save(var, users.create(raw_json(ctx.render(raw))))
 
 
 # Optional-field inputs consumed by "Create user with full body"
@@ -218,9 +181,21 @@ def generate_username_of_length(ctx, n, key):
 # ─── Get user ──────────────────────────────────────────────────────────────
 
 
-@when(parsers.parse('Send GET user request for "{id_key}" and save response as "{var}"'))
+# Reads are public, but a PRESENT Authorization header must be valid (Feature 17). `quoted()` keeps the
+# anonymous phrasing from also matching the "with raw auth header" / "with token" variants.
+@when(quoted('Send GET user request for "{id_key}" and save response as "{var}"'))
 def get_user(ctx, id_key, var):
-    ctx.save(var, client.get(paths.users_get(ctx.str(id_key))))
+    ctx.save(var, users.get(ctx.str(id_key)))
+
+
+@when(quoted('Send GET user request for "{id_key}" with raw auth header "{header}" and save response as "{var}"'))
+def get_user_raw_auth(ctx, id_key, header, var):
+    ctx.save(var, users.get(ctx.str(id_key), auth.raw(ctx.render(header))))
+
+
+@when(quoted('Send GET user request for "{id_key}" with token "{token_key}" and save response as "{var}"'))
+def get_user_token(ctx, id_key, token_key, var):
+    ctx.save(var, users.get(ctx.str(id_key), auth.bearer(ctx.str(token_key))))
 
 
 # ─── List users ────────────────────────────────────────────────────────────
@@ -228,7 +203,32 @@ def get_user(ctx, id_key, var):
 
 @when(parsers.parse('Send GET users list request and save response as "{var}"'))
 def list_users(ctx, var):
-    ctx.save(var, client.get(paths.USERS_LIST))
+    ctx.save(var, users.list_users())
+
+
+# `query` is a raw query string with ${key} placeholders: repeated keys and present-but-empty values survive
+@when(quoted('Send GET users list request with query "{query}" and save response as "{var}"'))
+def list_users_query(ctx, query, var):
+    ctx.save(var, users.list_users(query_pairs(ctx.render(query))))
+
+
+@when(
+    quoted(
+        'Send GET users list request with query "{query}" and raw auth header "{header}" and save response as "{var}"'
+    )
+)
+def list_users_query_raw_auth(ctx, query, header, var):
+    ctx.save(var, users.list_users(query_pairs(ctx.render(query)), auth.raw(ctx.render(header))))
+
+
+@when(quoted('Send GET users list request with query "{query}" and token "{token_key}" and save response as "{var}"'))
+def list_users_query_token(ctx, query, token_key, var):
+    ctx.save(var, users.list_users(query_pairs(ctx.render(query)), auth.bearer(ctx.str(token_key))))
+
+
+@then(parsers.parse('Assert users list total_pages matches total and per_page in "{var}"'))
+def assert_users_list_total_pages(ctx, var):
+    assert_total_pages(ctx.body(var))
 
 
 # String-typed so boundary rows can pass non-numeric values (abc, -5, xyz)
@@ -236,7 +236,7 @@ def list_users(ctx, var):
     parsers.parse('Send GET users list request with page "{page}" per_page "{per_page}" and save response as "{var}"')
 )
 def list_users_paged(ctx, page, per_page, var):
-    ctx.save(var, client.get(paths.USERS_LIST, params={"page": page, "per_page": per_page}))
+    ctx.save(var, users.list_users({"page": page, "per_page": per_page}))
 
 
 @then(parsers.parse('Assert users list is not empty in "{var}"'))
@@ -254,46 +254,38 @@ def assert_users_list_no_field(ctx, field, var):
 
 @when(parsers.parse('Send HEAD exists request for "{id_key}" and save response as "{var}"'))
 def head_exists(ctx, id_key, var):
-    ctx.save(var, client.head(paths.users_exists(ctx.str(id_key))))
+    ctx.save(var, users.exists(ctx.str(id_key), "HEAD"))
 
 
 @when(parsers.parse('Send GET exists request for "{id_key}" and save response as "{var}"'))
 def get_exists(ctx, id_key, var):
-    ctx.save(var, client.get(paths.users_exists(ctx.str(id_key))))
+    ctx.save(var, users.exists(ctx.str(id_key), "GET"))
 
 
 # ─── Update user (PUT) ─────────────────────────────────────────────────────
 
 
-def _update(ctx, id_key, body, headers, var):
-    ctx.save(var, client.put(paths.users_update(ctx.str(id_key)), body, headers))
-
-
 @when(parsers.parse('Update user "{id_key}" with token "{token_key}" and save response as "{var}"'))
 def update_user_token(ctx, id_key, token_key, var):
-    _update(ctx, id_key, _context_update_body(ctx), auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.update(ctx.str(id_key), _context_update_body(ctx), auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Update user "{id_key}" with raw body "{raw}" token "{token_key}" and save response as "{var}"'))
 def update_user_raw_body(ctx, id_key, raw, token_key, var):
-    _update(ctx, id_key, raw_json(raw), auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.update(ctx.str(id_key), raw_json(raw), auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Update user "{id_key}" with raw auth header "{header}" and save response as "{var}"'))
 def update_user_raw_auth(ctx, id_key, header, var):
-    _update(ctx, id_key, _random_update_body(), auth.raw(header), var)
+    ctx.save(var, users.update(ctx.str(id_key), factories.random_update(), auth.raw(header)))
 
 
 @when(parsers.parse('Update user "{id_key}" with no auth token and save response as "{var}"'))
 def update_user_no_auth(ctx, id_key, var):
-    _update(ctx, id_key, _random_update_body(), auth.none(), var)
+    ctx.save(var, users.update(ctx.str(id_key), factories.random_update(), auth.none()))
 
 
 # ─── Patch user (PATCH) ────────────────────────────────────────────────────
-
-
-def _patch(ctx, id_key, body, headers, var):
-    ctx.save(var, client.patch(paths.users_patch(ctx.str(id_key)), body, headers))
 
 
 @when(
@@ -302,49 +294,45 @@ def _patch(ctx, id_key, body, headers, var):
     )
 )
 def patch_user_field(ctx, id_key, field, value, token_key, var):
-    _patch(ctx, id_key, {field: ctx.str(value)}, auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.patch(ctx.str(id_key), {field: ctx.str(value)}, auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Patch user "{id_key}" with raw body "{raw}" token "{token_key}" and save response as "{var}"'))
 def patch_user_raw_body(ctx, id_key, raw, token_key, var):
-    _patch(ctx, id_key, raw_json(raw), auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.patch(ctx.str(id_key), raw_json(raw), auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Patch user "{id_key}" with empty body token "{token_key}" and save response as "{var}"'))
 def patch_user_empty_body(ctx, id_key, token_key, var):
-    _patch(ctx, id_key, {}, auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.patch(ctx.str(id_key), {}, auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Patch user "{id_key}" with raw auth header "{header}" and save response as "{var}"'))
 def patch_user_raw_auth(ctx, id_key, header, var):
-    _patch(ctx, id_key, _random_patch_body(), auth.raw(header), var)
+    ctx.save(var, users.patch(ctx.str(id_key), factories.random_patch(), auth.raw(header)))
 
 
 @when(parsers.parse('Patch user "{id_key}" with no auth token and save response as "{var}"'))
 def patch_user_no_auth(ctx, id_key, var):
-    _patch(ctx, id_key, _random_patch_body(), auth.none(), var)
+    ctx.save(var, users.patch(ctx.str(id_key), factories.random_patch(), auth.none()))
 
 
 # ─── Delete user ───────────────────────────────────────────────────────────
 
 
-def _delete(ctx, id_key, headers, var):
-    ctx.save(var, client.delete(paths.users_delete(ctx.str(id_key)), headers))
-
-
 @when(parsers.parse('Delete user "{id_key}" with token "{token_key}" and save response as "{var}"'))
 def delete_user_token(ctx, id_key, token_key, var):
-    _delete(ctx, id_key, auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.delete(ctx.str(id_key), auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Delete user "{id_key}" with raw auth header "{header}" and save response as "{var}"'))
 def delete_user_raw_auth(ctx, id_key, header, var):
-    _delete(ctx, id_key, auth.raw(header), var)
+    ctx.save(var, users.delete(ctx.str(id_key), auth.raw(header)))
 
 
 @when(parsers.parse('Delete user "{id_key}" with no auth token and save response as "{var}"'))
 def delete_user_no_auth(ctx, id_key, var):
-    _delete(ctx, id_key, auth.none(), var)
+    ctx.save(var, users.delete(ctx.str(id_key), auth.none()))
 
 
 # ─── Login ─────────────────────────────────────────────────────────────────
@@ -352,35 +340,30 @@ def delete_user_no_auth(ctx, id_key, var):
 
 @when(parsers.parse('Login with "{email_key}" and "{password_key}" and save response as "{var}"'))
 def login(ctx, email_key, password_key, var):
-    body = LoginReq(email=ctx.str(email_key), password=ctx.str(password_key))
-    ctx.save(var, client.post(paths.LOGIN, body.to_body()))
+    ctx.save(var, session.login(LoginReq(email=ctx.str(email_key), password=ctx.str(password_key))))
 
 
 @when(parsers.parse('Login with raw body "{raw}" and save response as "{var}"'))
 def login_raw(ctx, raw, var):
-    ctx.save(var, client.post(paths.LOGIN, raw_json(raw)))
+    ctx.save(var, session.login(raw_json(raw)))
 
 
 # ─── Logout (POST without body) ────────────────────────────────────────────
 
 
-def _logout(ctx, id_key, headers, var):
-    ctx.save(var, client.post(paths.users_logout(ctx.str(id_key)), None, headers))
-
-
 @when(parsers.parse('Logout user "{id_key}" with token "{token_key}" and save response as "{var}"'))
 def logout_token(ctx, id_key, token_key, var):
-    _logout(ctx, id_key, auth.bearer(ctx, token_key), var)
+    ctx.save(var, users.logout(ctx.str(id_key), auth.bearer(ctx.str(token_key))))
 
 
 @when(parsers.parse('Logout user "{id_key}" with raw auth header "{header}" and save response as "{var}"'))
 def logout_raw_auth(ctx, id_key, header, var):
-    _logout(ctx, id_key, auth.raw(header), var)
+    ctx.save(var, users.logout(ctx.str(id_key), auth.raw(header)))
 
 
 @when(parsers.parse('Logout user "{id_key}" with no auth token and save response as "{var}"'))
 def logout_no_auth(ctx, id_key, var):
-    _logout(ctx, id_key, auth.none(), var)
+    ctx.save(var, users.logout(ctx.str(id_key), auth.none()))
 
 
 # ─── Typed response assertions ─────────────────────────────────────────────
@@ -393,7 +376,7 @@ def assert_error_code_step(ctx, code, var):
 
 @then(parsers.parse('Assert user response has all core fields in "{var}"'))
 def assert_user_core_fields_step(ctx, var):
-    assert_user_core_fields(ctx.body(var))
+    UserResponse.check(ctx.body(var))
 
 
 @then(parsers.parse('Assert login response is successful in "{var}"'))
