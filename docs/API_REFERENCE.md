@@ -101,7 +101,8 @@ The middleware checks in this exact order:
 | 1 | `Authorization` header missing | 401 `MISSING_TOKEN` |
 | 2 | Header present but not `Bearer <token>` format | 401 `INVALID_TOKEN_FORMAT` |
 | 3 | `:id` path param is empty | 400 `MISSING_USER_ID` |
-| 4 | Token does not match stored token for the user | 401 `INVALID_TOKEN` — "Token does not match user or has expired" |
+| 4 | Token unknown, revoked or expired | 401 `INVALID_TOKEN` — "Token does not match user or has expired" |
+| 5 | Token is valid but belongs to a **different** user | 403 `FORBIDDEN` — "You can only modify your own account" (since 2026-10-23, "Feature 17": 401 = credential not accepted, 403 = accepted but not permitted) |
 
 A token is invalidated (revoked to empty string in DB) on logout. Any subsequent request with a revoked token returns `401 INVALID_TOKEN`.
 
@@ -644,6 +645,7 @@ Full `UserResponse` (without `access_token`).
 | 401 | `MISSING_TOKEN` | No `Authorization` header |
 | 401 | `INVALID_TOKEN_FORMAT` | Header not in `Bearer <token>` format |
 | 401 | `INVALID_TOKEN` | Token does not match the user's stored token |
+| 403 | `FORBIDDEN` | Valid token of a different user |
 | 404 | `USER_NOT_FOUND` | User not found or invalid ObjectID |
 | 500 | `INTERNAL_ERROR` | Database error |
 
@@ -705,6 +707,7 @@ Empty body. User permanently deleted.
 | 401 | `MISSING_TOKEN` | No `Authorization` header |
 | 401 | `INVALID_TOKEN_FORMAT` | Header not in `Bearer <token>` format |
 | 401 | `INVALID_TOKEN` | Token does not match the user |
+| 403 | `FORBIDDEN` | Valid token of a different user |
 | 404 | `USER_NOT_FOUND` | User not found or invalid ObjectID |
 | 500 | `INTERNAL_ERROR` | Database error |
 
@@ -743,6 +746,7 @@ None.
 | 401 | `MISSING_TOKEN` | No `Authorization` header |
 | 401 | `INVALID_TOKEN_FORMAT` | Header not in `Bearer <token>` format |
 | 401 | `INVALID_TOKEN` | Token does not match the user |
+| 403 | `FORBIDDEN` | Valid token of a different user |
 | 500 | `INTERNAL_ERROR` | Database error revoking token |
 
 ---
@@ -981,6 +985,7 @@ Empty body. Mailbox and all its messages permanently deleted.
 | `MISSING_TOKEN` | 401 | `Authorization` header is absent |
 | `INVALID_TOKEN_FORMAT` | 401 | `Authorization` header present but not in `Bearer <token>` format |
 | `INVALID_TOKEN` | 401 | Token does not match the user's stored token or has been revoked |
+| `FORBIDDEN` | 403 | Valid token, but it belongs to a different user (PUT/PATCH/DELETE/logout) |
 | `INVALID_CREDENTIALS` | 401 | Wrong email or password on login |
 | `USER_NOT_FOUND` | 404 | No user found for the given ID, or ID is not a valid ObjectID |
 | `MAILBOX_NOT_FOUND` | 404 | No mailbox found for the given token (expired, deleted, or never existed) |

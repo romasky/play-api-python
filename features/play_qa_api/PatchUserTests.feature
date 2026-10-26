@@ -66,15 +66,15 @@ Feature: Patch User
     And Assert error code is "INVALID_TOKEN" in response "response"
 
   @Run @Negative @allure.label.severity:critical @allure.label.story:Negative_Scenario
-  Scenario: Patch with another user token returns 401 INVALID_TOKEN
+  Scenario: Patch with another user token returns 403 FORBIDDEN
     Given Create minimal user and save response as "userARes"
     And Extract "id" from "userARes" and save as "userAId"
     And Create minimal user and save response as "userBRes"
     And Extract "access_token" from "userBRes" and save as "userBToken"
     And Generate email and save as "newEmail"
     When Patch user "userAId" with field "email" value "newEmail" token "userBToken" and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN" in response "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"
 
   @Run @Flow @allure.label.story:End_to_End_Flow
   Scenario: Patch user and verify with GET

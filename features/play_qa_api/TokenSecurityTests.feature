@@ -103,5 +103,5 @@ Feature: Token Security
     And Create minimal user and save response as "userBRes"
     And Extract "access_token" from "userBRes" and save as "userBToken"
     When Logout user "userAId" with token "userBToken" and save response as "response"
-    Then Get and check status code 401 from "response"
-    And Assert error code is "INVALID_TOKEN" in response "response"
+    Then Get and check status code 403 from "response"
+    And Assert error code is "FORBIDDEN" in response "response"

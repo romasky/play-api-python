@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(curl -s -m 20 -o /dev/null -w \"%{http_code}\\\\n\" https://play-qa.com/api/v1/health)",
+      "Bash(curl -s -m 20 https://play-qa.com/swagger/index.html)",
+      "Bash(curl -s -m 20 https://play-qa.com/swagger/swagger-initializer.js)",
+      "Bash(mkdir -p /private/tmp/claude-501/-Users-macbook-Documents-Storage-rs-projects-play-api-python/eeccf3b8-7a16-484c-8156-aabeb5722a71/scratchpad/swagger)",
+      "Bash(curl -s -m 30 \"https://play-qa.com/swagger/doc.json\" -o doc.json)",
+      "Bash(curl -s -m 20 -D - https://play-qa.com/api/v1/users/list?limit=2 -o /tmp/l.json)",
+      "Bash(git add *)"
+    ]
+  }
+}

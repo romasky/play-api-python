@@ -119,6 +119,10 @@ All six step modules are fully ported (94 step definitions; `tools/check_steps.p
 - `GET /auth/basic` works live (admin/admin); 401 body `{error:"Unauthorized", message}` + `WWW-Authenticate`.
 - Validation error for bio > 500: `error.details == "bio must be at most 500 characters long"` (no `validation[]`).
 - Origin outages show as Cloudflare 521 `origin_down` — not a test failure.
+- **2026-10-23 "Feature 17"**: a *valid* token of another user on PUT/PATCH/DELETE/logout → **403 `FORBIDDEN`** (was 401 `INVALID_TOKEN`).
+  The 3 cross-user scenarios were edited here — the feature files now follow the live API / Swagger
+  (`https://play-qa.com/swagger/doc.json`), no longer a verbatim copy of play-api-js.
+- One-off `RemoteProtocolError: Server disconnected` on the `Bearer` (no space) outline row (2026-10-21, single occurrence) — not reproducible, left as is (paced, never retried).
 
 ## 9. Pitfalls specific to the Python stack
 
