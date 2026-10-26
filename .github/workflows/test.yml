@@ -102,7 +102,9 @@ jobs:
       - uses: actions/checkout@v7  # brings the committed allure-results/categories.json
       - uses: actions/download-artifact@v7
         with:
-          pattern: allure-results-*-${{ github.run_attempt }}
+          # every attempt of every group: after "Re-run failed jobs" the groups that passed keep their attempt-1
+          # artifact; result files have unique names, so a re-run group simply shows up as a retry in Allure
+          pattern: allure-results-*
           path: allure-results
           merge-multiple: true
       - uses: astral-sh/setup-uv@v10.0.1
