@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FAIL_STATUS",
+    "message": "fail_status must be an integer in 400-599",
+    "details": "fail_status must be an integer in 400-599: got 399"
+  },
+  "timestamp": "2026-10-27T14:09:17.438304241Z",
+  "request_id": "f65177d6-7682-4fb3-9e9f-c1b8f42fab15"
+}
