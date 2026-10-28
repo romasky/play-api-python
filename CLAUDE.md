@@ -72,6 +72,8 @@ src/play_api/
   utils/samples.py               # in-memory upload files (PNG, PDF, fake PNG, .exe, 5 MiB boundaries …)
   utils/webhook_sign.py          # X-PlayQA-Signature (HMAC-SHA256, t=…,v1=…)
 tests/
+  unit/                          # OFFLINE unit tests of src/play_api + tools (MockTransport, monkeypatch) — the coverage
+                                 # source for the ub-mode gates; own conftest, run via tools/ub_gates.py (never the live suite)
   conftest.py                    # pytest_plugins (13 step modules), ctx fixture (runs ctx.defer cleanups), tag→allure_label, --epic
   test_features.py               # scenarios("play_qa_api") — binds every feature file (recursive)
   steps/support.py               # quoted() parser, bearer()/raw_header(), save_created() (cleanup-safe create), route_call()
@@ -83,6 +85,9 @@ tools/check_steps.py             # OFFLINE: step ↔ exactly one definition, eve
 tools/spec_drift.py              # live Swagger vs snapshot: new / removed operations, changed response codes
 tools/spec_coverage.py           # which spec operations a run called (most specific template wins; reads allure-results)
 tools/_spec.py                   # shared snapshot loading / operation iteration
+tools/ub_gates.py                # ub-mode gates: unit | crap (CRAP < 10) | dry (< 0.8) | mutate <path> | fast | all — local only
+.claude/skills/ub-mode/SKILL.md  # https://github.com/unclebob/ub-mode + "In this repo" mapping (/ub-mode)
+.claude/agents/ub-*.md           # ub-implementer (Make it Work), ub-gatekeeper (Make it Right), ub-reviewer (read-only)
 allure-results/categories.json   # committed; never --clean-alluredir
 .github/workflows/test.yml       # lint → test matrix (6 epic groups) → report (merge, coverage, Allure, Pages); spec-drift
 ```
@@ -152,6 +157,9 @@ The old JS → Python porting table (`{string}` → `"{x}"`, `ctx.get(v, true).d
   service, composite setup steps, shared support helpers, request models for every body, dead code removed.
 - [x] **P12 Wiki** (2026-10-26, wiki `f094437`) — all 15 pages rewritten for the new framework + API-Domains,
   Spec-Drift-and-Coverage. First CI matrix run (PR #1): green in 7 min 43 s wall time (serial ≈ 21 min).
+- [x] **P13 ub-mode** (2026-10-28) — https://github.com/unclebob/ub-mode as a project skill + three agents
+  (`ub-implementer`, `ub-gatekeeper`, `ub-reviewer`); offline `tests/unit` suite as the coverage source; crapper /
+  dryer / mutator via `tools/ub_gates.py` (`ub` dependency group, pinned commits). Local only — not in CI yet.
 
 ## 8. Live-API facts not in the Swagger spec (verified 2026-10-26)
 
@@ -221,6 +229,18 @@ Chaos / buggy / challenges / misc
 - `pytest --co` does NOT detect undefined or ambiguous steps — run `tools/check_steps.py`.
 - `ctx.body()` returns the raw text for non-JSON bodies, so a 521 page fails as "Field 'id' not found … <!DOCTYPE html>"
   (status *failed*) rather than a JSONDecodeError. A whole run failing that way = origin outage, re-run later.
+- **Never run `crapper` / `mutator` bare** — by default they run plain `pytest`, i.e. the live suite (per mutant!).
+  Always go through `tools/ub_gates.py`: crapper reads lcov from `tests/unit`; mutator runs `tests/unit` per mutant
+  with `--no-coverage`, so a site no test reaches fails as a survivor instead of being skipped "uncovered". The `ub`
+  dependency group is not installed by plain `uv sync` (`uv run --group ub …` installs it); the first gate run downloads
+  the tree-sitter Python grammar (needs network — outside the Claude sandbox). dryer always exits 0; the script fails on
+  a candidate in `.metrics/dry.edn`.
+- Never edit `src/`, `tools/` or `tests/unit/` while mutator runs — workers symlink the live files, a failing test
+  "kills" every mutant. If it happened: `rm -rf .metrics/mutate` and re-run (it is differential otherwise).
+- Unit tests must spell out expected values, not rebuild them from the module's constants — a test that derives the
+  expected command from `ub_gates.UNIT` pinned the very bug it should have caught.
+- The live run never collects `tests/unit` (`collect_ignore` in `tests/conftest.py`); the gate script passes the path
+  explicitly with `-o addopts= --confcutdir=tests/unit`, so neither the marker filter nor `tests/conftest.py` applies.
 - Do not use `--clean-alluredir` — it would delete the committed `allure-results/categories.json`.
 - `spec_coverage.py` counts calls in `allure-results/`, which accumulates across local runs — for an honest number
   run it on a fresh results dir (CI does: the report job merges only this run's artifacts).
@@ -236,6 +256,9 @@ uv run pytest --epic Chaos_Engineering    # one Allure epic (repeatable) — wha
 uv run pytest -k "empty_bearer or malformed_authorization"   # by test-name substring (feature paths do NOT work)
 uv run python tools/spec_drift.py         # live Swagger vs docs/openapi.json (--update to accept a new spec)
 uv run python tools/spec_coverage.py      # spec operations called by the runs in allure-results/
+uv run --group ub python tools/ub_gates.py fast           # ub-mode quick loop: offline unit tests + crapper + dryer
+uv run --group ub python tools/ub_gates.py all            # ub-mode full gate: fast + mutator on the git-changed sources
+uv run --group ub python tools/ub_gates.py all src/play_api/pacing.py      # … or on these paths
 BASE_URL=https://staging.play-qa.com uv run pytest
 npx --yes allure@3 generate allure-results -o allure-report && npx --yes allure@3 open allure-report
 ```
