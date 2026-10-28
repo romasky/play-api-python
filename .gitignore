@@ -6,4 +6,8 @@ allure-report/
 allure-results/*
 !allure-results/categories.json
 reports/
+# ub-mode gate output (tools/ub_gates.py): crapper/dryer/mutator snapshots + lcov
+.metrics/
+target/
+.coverage
 .env

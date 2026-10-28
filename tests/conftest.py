@@ -11,6 +11,9 @@ import pytest
 
 from play_api.context import ScenarioContext
 
+# Offline unit tests have their own runner (tools/ub_gates.py); a live run never collects them, whatever `-m` says.
+collect_ignore = ["unit"]
+
 # Every step module is a pytest plugin so its @given/@when/@then are visible to all features.
 pytest_plugins = [
     "tests.steps.common_steps",

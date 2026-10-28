@@ -13,6 +13,8 @@ from play_api.utils.lookup import choose
 
 # the payload the signature scenarios send (signed over these exact bytes)
 SIGNED_BODY = '{"event":"signed"}'
+_FOREIGN_SECRET = "whsec_" + "0" * 32  # well-formed, but not the inbox's secret
+_SKEW = 600  # seconds — twice the server's ±300 s tolerance
 
 
 def signature(secret: str, body: str, timestamp: int) -> str:
@@ -23,11 +25,12 @@ def signature(secret: str, body: str, timestamp: int) -> str:
 def header_for(kind: str, secret: str, body: str) -> dict[str, str]:
     """valid | wrong hmac | stale timestamp | future timestamp | garbage | empty | none"""
     now = int(time.time())
+    stale, future = now - _SKEW, now + _SKEW
     values = {
         "valid": signature(secret, body, now),
-        "wrong hmac": signature("whsec_" + "0" * 32, body, now),
-        "stale timestamp": signature(secret, body, now - 600),
-        "future timestamp": signature(secret, body, now + 600),
+        "wrong hmac": signature(_FOREIGN_SECRET, body, now),
+        "stale timestamp": signature(secret, body, stale),
+        "future timestamp": signature(secret, body, future),
         "garbage": "garbage",
         "empty": "",
     }

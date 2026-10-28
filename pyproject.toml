@@ -19,6 +19,14 @@ dev = [
   "mypy>=2.3.1",
   "websockets>=15",
 ]
+# ub-mode quality gates (tools/ub_gates.py) — local only, not installed by `uv sync`: `uv run --group ub …`.
+# Pinned commits; the first run downloads the tree-sitter Python grammar (network).
+ub = [
+  "coverage>=7.6",
+  "crapper @ git+https://github.com/unclebob/crapper@6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+  "dryer @ git+https://github.com/unclebob/dryer@66ff6d21a42c04afcad89c78a80066176d1294b0",
+  "mutator @ git+https://github.com/unclebob/mutator@a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -29,7 +37,7 @@ packages = ["src/play_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tools"]  # tools/ so tests/unit can import the tool scripts (check_steps, ub_gates, _spec …)
 bdd_features_base_dir = "features"
 # Same default filter as cucumber.js: `tags: '@Run and not @Ignore and not @Bug and not @NotImplemented'`
 # Override at runtime: uv run pytest -m Smoke

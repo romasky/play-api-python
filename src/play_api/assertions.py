@@ -9,6 +9,7 @@ import json
 import math
 import re
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from typing import Any
 
 import httpx2 as httpx
@@ -28,12 +29,23 @@ def items(body: Any, list_path: str) -> list[Any]:
     return value
 
 
+_RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
+
+
+def _sort_key(values: list[Any]) -> Callable[[Any], Any] | None:
+    """Timestamps compare by instant: Go's RFC3339Nano drops trailing fractional zeros ("…:44Z" is
+    …:44.000), so their text order is wrong. Anything else keeps byte order (Python str ordering ==
+    the API's binary string order for UTF-8)."""
+    if values and all(isinstance(v, str) and _RFC3339.fullmatch(v) for v in values):
+        return datetime.fromisoformat
+    return None
+
+
 def assert_sorted(body: Any, list_path: str, key: str, direction: str) -> None:
-    """Byte-order check (Python str ordering == the API's binary string order for UTF-8)."""
     assert direction in ("asc", "desc"), f"direction must be asc|desc, got {direction!r}"
     values = [get_path(item, key) for item in items(body, list_path)]
     assert None not in values, f"some '{list_path}' items have no '{key}': {values}"
-    expected = sorted(values, reverse=direction == "desc")
+    expected = sorted(values, key=_sort_key(values), reverse=direction == "desc")
     assert values == expected, f"'{list_path}' not sorted by {key} {direction}: {values}"
 
 
