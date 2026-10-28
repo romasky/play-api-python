@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_DELAY",
+    "message": "delay must be a finite number >= 0",
+    "details": "delay must be a finite number >= 0: not a finite number: \"NaN\""
+  },
+  "timestamp": "2026-10-28T05:45:11.233691551Z",
+  "request_id": "1d182bf0-d724-4c70-934d-91bf20887fc5"
+}
