@@ -237,6 +237,9 @@ Chaos / buggy / challenges / misc
   a candidate in `.metrics/dry.edn`.
 - Never edit `src/`, `tools/` or `tests/unit/` while mutator runs — workers symlink the live files, a failing test
   "kills" every mutant. If it happened: `rm -rf .metrics/mutate` and re-run (it is differential otherwise).
+- Never write a secret-shaped literal (`whsec_` + 16+ alphanumerics = Stripe's webhook secret shape) in code or tests —
+  GitHub secret scanning opens an alert per push (40 so far, all false positives). Build fakes at runtime:
+  `"whsec_" + "0" * 32`.
 - Unit tests must spell out expected values, not rebuild them from the module's constants — a test that derives the
   expected command from `ub_gates.UNIT` pinned the very bug it should have caught.
 - The live run never collects `tests/unit` (`collect_ignore` in `tests/conftest.py`); the gate script passes the path
