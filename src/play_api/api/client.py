@@ -16,6 +16,7 @@ Design (keep it):
 * Every 2xx JSON body is validated against its registered contract (`contract_for`). A violation raises
   `ContractViolation`, which still carries the response — so a create step can register its cleanup.
 * A client-side timeout is recorded inside the sub-step (which stays green) and re-raised after it.
+* A dropped connection with no response (`RemoteProtocolError`) is retried ONCE, re-paced — never a 4xx/5xx/429.
 """
 
 from __future__ import annotations
@@ -148,22 +149,32 @@ def request(
     elif isinstance(json, RawJson):
         json, content = None, str(json)
         headers = [("Content-Type", "application/json"), *_wire_headers(headers)]
+
+    def send() -> httpx.Response:
+        pacing.throttle(method, path)
+        return _client.request(
+            method,
+            path,
+            json=json,
+            content=content,
+            files=files,
+            params=params,
+            headers=_wire_headers(headers),
+            follow_redirects=follow_redirects,
+            timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
+        )
+
     timed_out: httpx.TimeoutException | None = None
     with allure.step(f"{method} {path}"):
         _attach_request(params, headers, json, content, files)
-        pacing.throttle(method, path)
         try:
-            response = _client.request(
-                method,
-                path,
-                json=json,
-                content=content,
-                files=files,
-                params=params,
-                headers=_wire_headers(headers),
-                follow_redirects=follow_redirects,
-                timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
-            )
+            try:
+                response = send()
+            except httpx.RemoteProtocolError as exc:
+                # Cloudflare's edge drops pooled keep-alive connections without notice; a request that
+                # races the close gets no response at all. One retry on a fresh connection (re-paced).
+                attach(f"{exc} — retried once on a fresh connection", "Retry", allure.attachment_type.TEXT)
+                response = send()
         except httpx.TimeoutException as exc:
             # an expected outcome in timeout scenarios: note it, leave the sub-step green, re-raise below
             attach(f"{type(exc).__name__} after the {timeout} s client timeout", "Timeout", allure.attachment_type.TEXT)

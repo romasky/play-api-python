@@ -198,7 +198,10 @@ Chaos / buggy / challenges / misc
   for patch-first-name is wrong (partial `profile` PATCH → 400 "last name is required").
 - SSE bounds steps 5–100, interval_ms 100–2000 (not in the spec); WS max message 32 KiB (close 1009 arrives ~20 s
   later — not tested); reCAPTCHA 400 message is "Invalid request body", a bogus token → 200 `success:false`.
-- One-off `RemoteProtocolError: Server disconnected` on the `Bearer` (no space) row (2026-10-21) — not reproducible.
+- `RemoteProtocolError: Server disconnected without sending a response` — Cloudflare's edge drops pooled keep-alive
+  connections without notice (every response says `connection: keep-alive`; the `cf-ray` colo can change mid-job).
+  It failed the scheduled `auth` job 2026-10-26/27 (1–5 ms after the previous response, random scenario).
+  `client.request()` retries it ONCE, re-paced, with a `Retry` attachment; httpx itself never retries.
 
 ## 9. Pitfalls specific to the Python stack
 
