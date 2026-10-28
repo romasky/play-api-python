@@ -69,6 +69,23 @@ def test_assert_sorted_uses_byte_order() -> None:
         a.assert_sorted({"data": [{"n": "a"}, {"n": "Z"}]}, "data", "n", "asc")
 
 
+# The API (Go RFC3339Nano) drops trailing fractional zeros: …:44.000 is "…:44Z", …:53.660 is "…:53.66Z".
+# CI run 40635492086 failed on this real order — string order puts "44Z" above "44.773Z".
+TIMES_DESC = ["2026-10-28T05:01:53.66Z", "2026-10-28T05:01:53.406Z", "2026-10-28T05:01:44.773Z", "2026-10-28T05:01:44Z"]
+
+
+def test_assert_sorted_orders_rfc3339_timestamps_by_instant_not_by_text() -> None:
+    a.assert_sorted({"d": [{"t": t} for t in TIMES_DESC]}, "d", "t", "desc")
+    a.assert_sorted({"d": [{"t": t} for t in reversed(TIMES_DESC)]}, "d", "t", "asc")
+    a.assert_sorted({"d": [{"t": "2026-10-28T05:01:53.6Z"}, {"t": "2026-10-28T05:01:53.66Z"}]}, "d", "t", "asc")
+
+
+def test_assert_sorted_still_rejects_misordered_timestamps() -> None:
+    swapped = [TIMES_DESC[0], TIMES_DESC[1], TIMES_DESC[3], TIMES_DESC[2]]  # 44.000 above 44.773 in desc
+    with pytest.raises(AssertionError, match="not sorted by t desc"):
+        a.assert_sorted({"d": [{"t": t} for t in swapped]}, "d", "t", "desc")
+
+
 def test_assert_sorted_rejects_missing_keys_and_bad_direction() -> None:
     with pytest.raises(AssertionError, match="some 'data' items have no 'n'"):
         a.assert_sorted({"data": [{"n": "a"}, {}]}, "data", "n", "asc")
