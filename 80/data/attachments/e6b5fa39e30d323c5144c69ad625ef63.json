@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "total": 2,
+  "challenges": [
+    {
+      "id": "delete-user-404",
+      "title": "challenge.delete-user-404.title",
+      "description": "challenge.delete-user-404.desc",
+      "category": "crud",
+      "difficulty": "easy",
+      "points": 10,
+      "hint_count": 3,
+      "params": []
+    },
+    {
+      "id": "patch-first-name",
+      "title": "challenge.patch-first-name.title",
+      "description": "challenge.patch-first-name.desc",
+      "category": "crud",
+      "difficulty": "easy",
+      "points": 10,
+      "hint_count": 3,
+      "params": []
+    }
+  ]
+}
