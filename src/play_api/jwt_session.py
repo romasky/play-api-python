@@ -43,14 +43,14 @@ def shared_jwt_session(global_store: dict[str, Any]) -> JwtSession:
     session: JwtSession | None = global_store.get(_KEY)
     if session is None or time.monotonic() - session.created > _MAX_AGE:
         body = factories.minimal_user()
-        assert body.email is not None and body.password is not None
+        login = JwtLoginReq.model_validate(body.model_dump(include={"email", "password"}))
         created = _ok(users.create(body), "create user")
-        pair = _ok(jwt.login(JwtLoginReq(email=body.email, password=body.password)), "JWT login")
-        short = _ok(jwt.login(JwtLoginReq(email=body.email, password=body.password, access_ttl_seconds=1)), "ttl login")
+        pair = _ok(jwt.login(login), "JWT login")
+        short = _ok(jwt.login(login.model_copy(update={"access_ttl_seconds": 1})), "ttl login")
         time.sleep(2)  # let the 1-second token expire
         session = JwtSession(
             user_id=created["id"],
-            email=body.email,
+            email=login.email,
             opaque_token=created["access_token"],
             access=pair["access_token"],
             refresh=pair["refresh_token"],

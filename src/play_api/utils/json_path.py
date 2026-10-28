@@ -8,28 +8,30 @@ from __future__ import annotations
 
 from typing import Any
 
+_MISSING = object()  # distinguishes "absent" from a present null
 
-def _step(current: Any, key: str) -> tuple[bool, Any]:
+
+def _step(current: Any, key: str) -> Any:
     if isinstance(current, dict):
-        return (True, current[key]) if key in current else (False, None)
+        return current.get(key, _MISSING)
     if isinstance(current, list) and key.isdigit() and int(key) < len(current):
-        return True, current[int(key)]
-    return False, None
+        return current[int(key)]
+    return _MISSING
 
 
-def get_path(obj: Any, path: str) -> Any:
+def _resolve(obj: Any, path: str) -> Any:
     current = obj
     for key in path.split("."):
-        found, current = _step(current, key)
-        if not found:
-            return None
+        current = _step(current, key)
+        if current is _MISSING:
+            break
     return current
 
 
+def get_path(obj: Any, path: str) -> Any:
+    value = _resolve(obj, path)
+    return None if value is _MISSING else value
+
+
 def has_path(obj: Any, path: str) -> bool:
-    current = obj
-    for key in path.split("."):
-        found, current = _step(current, key)
-        if not found:
-            return False
-    return True
+    return _resolve(obj, path) is not _MISSING
