@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "user_id": "6ae160b28a6e647a79dcc970",
+  "total": 1,
+  "returned": 1,
+  "reports": [
+    {
+      "report_id": "6ae160b48a6e647a79dcc974",
+      "bug_id": "timezone-shift",
+      "title": "GET /buggy/schedule returns a wrong result",
+      "severity": "medium",
+      "score_total": 100,
+      "created_at": "2026-10-28T02:40:52.158Z"
+    }
+  ]
+}
