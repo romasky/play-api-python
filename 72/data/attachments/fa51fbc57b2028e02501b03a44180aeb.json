@@ -1,0 +1,1824 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "REST API for practicing QA automation and API testing.\n\n**Base URL:** /api/v1\n\n**Authentication:**\n- Create a user with POST /users/create to receive an access_token\n- Or use POST /login with existing credentials to get a new access_token\n- Include the token in Authorization header as: Bearer {your_access_token}\n- Token required for: PUT, PATCH, DELETE operations\n\n**Auto-Deletion:**\n- All users are automatically deleted after 24 hours (TTL)\n- Maximum 1,000,000 users allowed in database\n\n**Rate Limiting:**\n- User creation: 100 requests per minute per IP\n- General API: 10 requests per second\n\n**Quick Start:**\n1. POST /users/create with email, username, password, profile.first_name, profile.last_name\n2. Save the access_token from response\n3. Use the token for authenticated operations (PUT, PATCH, DELETE)",
+    "title": "User API",
+    "contact": {},
+    "version": "1.0"
+  },
+  "basePath": "/api/v1",
+  "paths": {
+    "/admin/stats": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Counts computed in ONE aggregation, so the three numbers are a single snapshot of a collection that a 24h TTL index is deleting from underneath. `by_role` always carries every role key, zero-filled — an absent key would be indistinguishable from a serialisation bug. Documents written before `metadata.role` existed are counted as `user`, which is the truth about their effective permissions.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Aggregate account statistics (admin)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.AdminStatsResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Valid token, but the account is not an admin",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "The ordinary user list plus `has_active_token` per row — whether that account is currently logged in. Accepts the same page/per_page/sort/filter/search contract as GET /users/list, validated by the same code. NOTE what it does not add: `metadata.last_login_ip` stays owner-only even here. An admin token is not a way around it, because the seed code that mints an admin is published — if admins could read it, closing the leak would mean nothing.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List users with the operator fields (admin)",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 10,
+            "description": "Items per page",
+            "name": "per_page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "created_at:desc",
+            "description": "field:asc|desc",
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "role:admin",
+            "description": "field:value",
+            "name": "filter",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "john",
+            "description": "Substring match",
+            "name": "search",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.AdminUsersListResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid pagination, sort or filter",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Valid token, but the account is not an admin",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Scoped to your own account on this practice server, for the same reason SetRole is: the seed code is published, so an unscoped delete would let any visitor remove other students' accounts and the sandbox users the challenge system verifies against. Deleting yourself also invalidates your token, so the next admin call answers 401 — a clean demonstration that 401 and 403 are different failures.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Delete a user (admin)",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "User ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; no body"
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Not an admin, or the target is not your own account",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/role": {
+      "patch": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Privilege management. Allowed values are `user` and `admin`; the data model's enum also contains `moderator`, but v1 refuses to grant it — that difference is deliberate, not an oversight. On this practice server the target must be your OWN account: admins are obtainable by anyone with the published seed code, so cross-user mutation would let one student rewrite another's. Demoting yourself from admin to user is the intended exercise, and it is irreversible without a new seed call.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Change a user's role (admin)",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "User ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New role",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.SetRoleRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.UserResponse"
+            }
+          },
+          "400": {
+            "description": "Role not in user, admin",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Not an admin, or the target is not your own account",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/bug-reports": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "The authenticated player's reports, newest first. `total` (all reports of the player) and `reports` come from one snapshot, `returned` = len(reports). No PII.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "My bug reports",
+        "parameters": [
+          {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+            "default": 20,
+            "description": "Page size (1..50)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.BugReportListResponse"
+            }
+          },
+          "400": {
+            "description": "limit out of range",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {}
+        ],
+        "description": "Deterministic scoring of a bug report about one of the catalog bugs — five criteria (has_steps 25, steps_reproducible 20, expected_actual 25, severity_reasonable 15, title_quality 15), each with an `ok`/`fail` feedback item and the parameters that explain the rule. Bearer is OPTIONAL: with a valid token the report is stored for 24h (201, `saved:true`, `report_id`), without a header it is only scored (200, `saved:false`, nothing stored). A presented but invalid/expired token is a 401, never a silent anonymous submit.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "Submit a bug report (auto-scored)",
+        "parameters": [
+          {
+            "description": "The report (steps 1..20 non-blank lines, severity low|medium|high|critical)",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.BugReportRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anonymous: scored, not stored",
+            "schema": {
+              "$ref": "#/definitions/models.BugReportResponse"
+            }
+          },
+          "201": {
+            "description": "Stored for the authenticated player",
+            "schema": {
+              "$ref": "#/definitions/models.BugReportResponse"
+            }
+          },
+          "400": {
+            "description": "Missing/blank/too long fields, unknown severity",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Authorization header present but the token is invalid or expired",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "bug_id is not in the catalog",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "413": {
+            "description": "Body larger than 64 KiB",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "429": {
+            "description": "On average 30 reports per minute per IP (burst 10)",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        },
+        "x-auth-optional": true
+      }
+    },
+    "/bug-reports/{id}": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Full report of the authenticated owner (steps, expected, actual, score with feedback). A foreign, unknown or malformed id is the same 404 — nothing about other players is revealed.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "One of my bug reports",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "6650a1b2c3d4e5f6a7b8c9d0",
+            "description": "Report id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.BugReportDetailResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not this player's report",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/buggy": {
+      "get": {
+        "description": "The three intentionally buggy endpoints: id, method, path and the i18n keys of title, description and EXPECTED behaviour (the frontend shows the expectation behind a spoiler). No severity metadata — that would spoil the bug-report scoring.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "Bug catalog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.BugCatalogResponse"
+            }
+          }
+        }
+      }
+    },
+    "/buggy/cart/total": {
+      "post": {
+        "description": "**This endpoint contains an intentional logic bug** (practice): the returned `total` is not sum(price × qty). Prices are parsed as exact decimals (at most two fraction digits) and summed in integer cents, so rounding is NOT the defect. Send two or more positions and check the arithmetic.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "Cart total (intentional wrong sum)",
+        "parameters": [
+          {
+            "description": "Cart positions (1..50); price is a bare decimal number, qty 1..1000",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.CartTotalRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The total as the server computes it",
+            "schema": {
+              "$ref": "#/definitions/models.CartTotalResponse"
+            }
+          },
+          "400": {
+            "description": "Body is not JSON, items empty, price not a 2-decimal number, qty out of range",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/buggy/items": {
+      "get": {
+        "description": "**This endpoint contains an intentional logic bug** (practice): status 200 does not mean the value is right. A 25-item deterministic dataset paginated by `page`/`per_page` — compare the number of returned items with `per_page` on a full page and with `total`. Which pages reproduce the problem?",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "Paginated items (intentional off-by-one)",
+        "parameters": [
+          {
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 1,
+            "description": "Page (1..1000000)",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+            "default": 10,
+            "description": "Page size (1..50)",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page — count the items yourself",
+            "schema": {
+              "$ref": "#/definitions/models.BuggyItemsResponse"
+            }
+          },
+          "400": {
+            "description": "page / per_page out of range or not a number",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/buggy/schedule": {
+      "get": {
+        "description": "**This endpoint contains an intentional logic bug** (practice): the event starts at 09:00 LOCAL time of the requested IANA zone, but the returned instant is shifted. `tz` is required — in UTC the defect is invisible. Try a zone with a DST transition on that date.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Buggy"
+        ],
+        "summary": "Event schedule (intentional timezone shift)",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "2026-03-29",
+            "description": "Calendar date YYYY-MM-DD",
+            "name": "date",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "example": "Europe/Moscow",
+            "description": "IANA time zone",
+            "name": "tz",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "event_start in the zone + event_start_utc",
+            "schema": {
+              "$ref": "#/definitions/models.ScheduleResponse"
+            }
+          },
+          "400": {
+            "description": "Missing/invalid date or tz",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges": {
+      "get": {
+        "description": "Public static catalog of server-verified challenges. `title`/`description` are i18n keys resolved by the frontend; `params` is the schema of the verify body (empty for the starter challenges). Progress is not mixed in — see GET /challenges/progress.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "List challenges",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "crud",
+            "description": "Filter by category (crud, auth)",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "easy",
+            "description": "Filter by difficulty (easy, medium, hard)",
+            "name": "difficulty",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalog (unknown filter values match nothing)",
+            "schema": {
+              "$ref": "#/definitions/models.ChallengeListResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges/progress": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Solved challenges of the authenticated player in catalog order, with points. Progress is keyed by the player (user id), so it survives login token rotation; it expires together with the user (24h TTL). No PII.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "Player progress",
+        "responses": {
+          "200": {
+            "description": "Progress",
+            "schema": {
+              "$ref": "#/definitions/models.ProgressResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges/{id}/hints": {
+      "get": {
+        "description": "Public: how many hints a challenge has and their kinds (1 nudge, 2 approach, 3 solution). Never carries the hint keys/texts — those come only from POST /challenges/{id}/hints/reveal (which records the reveal) and from GET /challenges/progress (already revealed).",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "Hint metadata",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "delete-user-404",
+            "description": "Challenge id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Levels without text",
+            "schema": {
+              "$ref": "#/definitions/models.HintsResponse"
+            }
+          },
+          "404": {
+            "description": "Unknown challenge id",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges/{id}/hints/reveal": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Reveals hints strictly in order. The body names the level you want: an already revealed level (idempotent repeat — same answer, nothing recorded) or exactly the next one (recorded). Asking for a level above the next one is refused with 409 — nothing is skipped, and a retried request can never reveal more than you asked for. The answer always carries every revealed level (`revealed`) so one response restores the state. Revealing does not require an open attempt; the level revealed at the moment of a solve is snapshotted into progress as `hints_used`.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "Reveal a hint level",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "delete-user-404",
+            "description": "Challenge id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Level to reveal (1..3): the next one or an already revealed one",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.RevealRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revealed levels (cumulative)",
+            "schema": {
+              "$ref": "#/definitions/models.RevealResponse"
+            }
+          },
+          "400": {
+            "description": "Body is not JSON or level is missing / not an integer 1..3",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Unknown challenge id",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Level above the next one — reveal the previous levels first",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges/{id}/start": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Creates a server-owned sandbox user for the player and records the baseline the verifier will compare against. 201 = fresh attempt with the sandbox credentials (email, username, password, access_token). 200 = the existing open attempt (credentials without the token — log in to get one; `target_missing:true` when the sandbox no longer exists, use `?reset=true`), or `already_solved:true` when the challenge is solved (nothing is created — one solve per player and challenge). `reset=true` abandons the open attempt, deletes its sandbox and issues a new one. Same rate budget as POST /users/create.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "Start (or reset) an attempt",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "delete-user-404",
+            "description": "Challenge id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "default": false,
+            "description": "Abandon the open attempt and start a fresh one",
+            "name": "reset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Existing open attempt, or already solved",
+            "schema": {
+              "$ref": "#/definitions/models.StartResponse"
+            }
+          },
+          "201": {
+            "description": "New attempt with sandbox credentials",
+            "schema": {
+              "$ref": "#/definitions/models.StartResponse"
+            }
+          },
+          "400": {
+            "description": "reset must be true or false",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Unknown challenge id",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "No open attempt could be issued (concurrent reset) — start again",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "429": {
+            "description": "Rate limit (shared with user creation)",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "503": {
+            "description": "Database limit reached",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/challenges/{id}/verify": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Checks that the attempt's sandbox moved from its baseline to the goal state. 200 for both outcomes: `solved:true` (with `points_awarded`, or `already_solved:true` and 0 points on a repeat) or `solved:false` with a `detail` explaining what is still missing. Body is optional: `attempt_id` pins an attempt (otherwise the open one is used); `params` must match the challenge's declared schema (empty for the starter challenges — any key is rejected). Repeated and concurrent verifies are idempotent and return the original `solved_at`.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Challenges"
+        ],
+        "summary": "Verify a solve",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "delete-user-404",
+            "description": "Challenge id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Optional attempt_id and params",
+            "name": "request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/models.VerifyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification result (solved or not yet)",
+            "schema": {
+              "$ref": "#/definitions/models.VerifyResponse"
+            }
+          },
+          "400": {
+            "description": "Body is not JSON, params is null/not an object, unknown or missing param",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown or expired token",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Unknown challenge id",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "No open attempt — start the challenge first (never started, expired, reset, or foreign attempt_id)",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/cache": {
+      "get": {
+        "description": "Always returns Cache-Control: public, max-age=60, a strong ETag header (\"chaos-v1\", quoted on the wire; the JSON body carries the bare value chaos-v1) and a fixed Last-Modified — including on 304. If-None-Match takes precedence over If-Modified-Since (RFC 7232) and is compared weakly: W/\"chaos-v1\", a comma-separated list containing it, or * all yield 304 Not Modified without a body. If-Modified-Since is only consulted when If-None-Match is absent.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Practice conditional requests (ETag / Last-Modified)",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "\"chaos-v1\"",
+            "description": "ETag(s) to compare, weak comparison",
+            "name": "If-None-Match",
+            "in": "header"
+          },
+          {
+            "type": "string",
+            "example": "Tue, 01 Sep 2026 00:00:00 GMT",
+            "description": "HTTP-date to compare against Last-Modified",
+            "name": "If-Modified-Since",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource representation",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosCacheResponse"
+            },
+            "headers": {
+              "Cache-Control": {
+                "type": "string",
+                "description": "public, max-age=60"
+              },
+              "ETag": {
+                "type": "string",
+                "description": "\\\"chaos-v1\\"
+              },
+              "Last-Modified": {
+                "type": "string",
+                "description": "Fixed release timestamp"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (no body, validators present)",
+            "schema": {
+              "type": "string"
+            },
+            "headers": {
+              "Cache-Control": {
+                "type": "string",
+                "description": "public, max-age=60"
+              },
+              "ETag": {
+                "type": "string",
+                "description": "\\\"chaos-v1\\"
+              },
+              "Last-Modified": {
+                "type": "string",
+                "description": "Fixed release timestamp"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chaos/delay/{seconds}": {
+      "get": {
+        "description": "Waits N seconds (float, 0-9) and then returns 200. Values above 9 are clamped to 9 (clamped:true). Negative, non-numeric, NaN or Inf values are rejected with 400 INVALID_DELAY. Use it to practice client timeouts.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Delay the response by N seconds",
+        "parameters": [
+          {
+            "type": "number",
+            "example": 3,
+            "description": "Seconds to wait (0-9; larger values are clamped)",
+            "name": "seconds",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response after the delay",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosDelayResponse"
+            }
+          },
+          "400": {
+            "description": "INVALID_DELAY - negative, non-numeric, NaN or Inf",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/echo": {
+      "get": {
+        "description": "Reflects method, path, headers, query and body. Sensitive headers (Authorization, Cookie, Proxy-Authorization, X-Api-Key, X-Auth-Token) are masked as \"***\". Body is read up to 1 MiB (413 above); at most the first 64 KiB are reflected (truncated:true above, body:null). The body is reflected as text only for textual Content-Types (text/*, application/json, application/*+json, application/xml, application/*+xml, application/x-www-form-urlencoded, or no Content-Type) AND valid UTF-8; everything else (application/pdf, application/zip, image/*, …) is returned as body_base64 with encoding:\"base64\".",
+        "consumes": [
+          "application/json",
+          "text/plain",
+          "application/octet-stream"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Echo the request back (httpbin /anything)",
+        "parameters": [
+          {
+            "description": "Any body (optional)",
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reflected request",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosEchoResponse"
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE - body exceeds 1 MiB",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Reflects method, path, headers, query and body. Sensitive headers (Authorization, Cookie, Proxy-Authorization, X-Api-Key, X-Auth-Token) are masked as \"***\". Body is read up to 1 MiB (413 above); at most the first 64 KiB are reflected (truncated:true above, body:null). The body is reflected as text only for textual Content-Types (text/*, application/json, application/*+json, application/xml, application/*+xml, application/x-www-form-urlencoded, or no Content-Type) AND valid UTF-8; everything else (application/pdf, application/zip, image/*, …) is returned as body_base64 with encoding:\"base64\".",
+        "consumes": [
+          "application/json",
+          "text/plain",
+          "application/octet-stream"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Echo the request back (httpbin /anything)",
+        "parameters": [
+          {
+            "description": "Any body (optional)",
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reflected request",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosEchoResponse"
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE - body exceeds 1 MiB",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/flaky": {
+      "get": {
+        "description": "Fails with probability fail_rate (0.0-1.0, default 0.5) returning fail_status (400-599, default 500); otherwise returns 200. Without seed the roll comes from math/rand (not reproducible). With seed (any int64, decimal string) the roll is deterministic: the same seed + fail_rate ALWAYS yields the same outcome and the same roll — repeating a seeded request never turns a failure into a success, so use /chaos/flaky/sequence + /chaos/flaky/step/{index} for retry exercises. Headers: X-Chaos-Seed (the seed or \"random\"), X-Chaos-Roll (roll rounded to 4 decimals — display value; the exact float64 is in the body), X-Chaos-Deterministic (true/false). The body echoes seed as a JSON string (int64 is not JSON-number safe) and roll at full precision. NOTE: fail_status is dynamic — a failed roll with fail_status=400/429/503 returns that status with THIS body, while the same statuses from validation, the rate limiter or the proxy carry an ErrorResponse envelope (success:false) or a non-JSON body.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Fail randomly — or reproducibly with a seed",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "20",
+            "description": "int64 as a decimal string; makes the roll reproducible",
+            "name": "seed",
+            "in": "query"
+          },
+          {
+            "type": "number",
+            "default": 0.5,
+            "description": "Failure probability 0.0-1.0",
+            "name": "fail_rate",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 500,
+            "description": "Status code returned on failure (400-599)",
+            "name": "fail_status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roll succeeded",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "true when a seed was supplied"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll in [0,1) rounded to 4 decimals (display value)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used, or 'random'"
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_SEED, INVALID_FAIL_RATE or INVALID_FAIL_STATUS (validation envelope). COLLISION: fail_status=400 on a failed roll returns 400 with a ChaosFlakyResponse body",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "418": {
+            "description": "Example of a custom fail_status (418 is never produced by infrastructure)",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "true when a seed was supplied"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll in [0,1) rounded to 4 decimals (display value)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used, or 'random'"
+              }
+            }
+          },
+          "500": {
+            "description": "Roll failed (status is fail_status, 500 by default)",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "true when a seed was supplied"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll in [0,1) rounded to 4 decimals (display value)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used, or 'random'"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chaos/flaky/sequence": {
+      "get": {
+        "description": "Returns the plan of the first `count` (1-50, default 10) indexed attempts for a seed: which of /chaos/flaky/step/0..count-1 fail. Step i uses roll = RollFromSeed(seed XOR i), failed = roll < fail_rate, status = failed ? fail_status : 200. steps[0] shares its roll with GET /chaos/flaky?seed=<seed> (same fail_rate). This is an INDEXED retry exercise: attempt i is a request to /chaos/flaky/step/i — repeating one unchanged URL never changes the outcome. first_success_index is an index; the number of attempts until success is first_success_index + 1 (-1 when every step fails). Pace recommendation: the global rate limit (10 req/s, burst 20, shared per IP) applies — for a client without concurrent traffic, >= 100 ms between attempts usually fits; a 429 (Go limiter) or 503 (proxy) is an infrastructure outcome outside the sequence: retry the SAME index after a pause.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Deterministic plan of indexed attempts",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "20",
+            "description": "int64 as a decimal string (required)",
+            "name": "seed",
+            "in": "query",
+            "required": true
+          },
+          {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+            "default": 10,
+            "description": "Number of steps in the plan (1-50)",
+            "name": "count",
+            "in": "query"
+          },
+          {
+            "type": "number",
+            "default": 0.5,
+            "description": "Failure probability 0.0-1.0",
+            "name": "fail_rate",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 500,
+            "description": "Status used for failed steps (400-599)",
+            "name": "fail_status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The plan",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakySequenceResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "always true"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used"
+              }
+            }
+          },
+          "400": {
+            "description": "SEED_REQUIRED, INVALID_SEED, INVALID_COUNT, INVALID_FAIL_RATE or INVALID_FAIL_STATUS",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "429": {
+            "description": "RATE_LIMIT_EXCEEDED — infrastructure outcome, not part of the plan",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/flaky/step/{index}": {
+      "get": {
+        "description": "Responds with the REAL status of step `index` (0-49) of the seeded sequence — 200 when the step succeeds, fail_status when it fails — so a loop over /chaos/flaky/step/0, /1, /2 … is a genuine retry exercise (attempt i = request to /step/i; repeating one URL never changes its outcome). The body is always ChaosFlakyStepResponse and equals steps[index] of /chaos/flaky/sequence with the same seed/fail_rate/fail_status. fail_status is dynamic (400-599): with fail_status=400/429/503 a failed step returns that status with THIS body, whereas the same statuses from validation (400), the Go rate limiter (429) or the production proxy (503) carry an ErrorResponse envelope (success:false) or a non-JSON body — check for the envelope to tell them apart. Pace: >= 100 ms between attempts is a recommendation for a client without concurrent traffic (global limit 10 req/s, burst 20 per IP); on 429/503 retry the SAME index after a pause.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "One indexed attempt of the seeded sequence",
+        "parameters": [
+          {
+            "maximum": 49,
+            "minimum": 0,
+            "type": "integer",
+            "example": 1,
+            "description": "Step index (0-49)",
+            "name": "index",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "example": "20",
+            "description": "int64 as a decimal string (required)",
+            "name": "seed",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "number",
+            "default": 0.5,
+            "description": "Failure probability 0.0-1.0",
+            "name": "fail_rate",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 500,
+            "description": "Status returned when the step fails (400-599)",
+            "name": "fail_status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Step succeeded",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyStepResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "always true"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll rounded to 4 decimals (display value; exact value in the body)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used"
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_INDEX, SEED_REQUIRED, INVALID_SEED, INVALID_FAIL_RATE or INVALID_FAIL_STATUS (validation envelope). COLLISION: a failed step with fail_status=400 returns 400 with a ChaosFlakyStepResponse body — tell them apart by success:false / error.code, present only in the envelope",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "418": {
+            "description": "Example of a custom fail_status (418 is never produced by infrastructure)",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyStepResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "always true"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll rounded to 4 decimals (display value; exact value in the body)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used"
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMIT_EXCEEDED from the Go limiter (infrastructure outcome, not part of the sequence). COLLISION: a failed step with fail_status=429 returns 429 with a ChaosFlakyStepResponse body",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Step failed — the actual status equals fail_status; body is always ChaosFlakyStepResponse",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosFlakyStepResponse"
+            },
+            "headers": {
+              "X-Chaos-Deterministic": {
+                "type": "string",
+                "description": "always true"
+              },
+              "X-Chaos-Roll": {
+                "type": "string",
+                "description": "Roll rounded to 4 decimals (display value; exact value in the body)"
+              },
+              "X-Chaos-Seed": {
+                "type": "string",
+                "description": "Seed used"
+              }
+            }
+          },
+          "503": {
+            "description": "nginx limit_req rejection in production (non-JSON, infrastructure outcome). COLLISION: a failed step with fail_status=503 returns 503 with a ChaosFlakyStepResponse body",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/gzip": {
+      "get": {
+        "description": "Returns Content-Encoding: gzip regardless of Accept-Encoding. Use it to verify that your client decodes gzip transparently. Disable automatic decompression in your client (e.g. Go http.Transport{DisableCompression:true}) to see the raw compressed bytes.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Always return a gzip-compressed JSON body",
+        "responses": {
+          "200": {
+            "description": "gzip-compressed body (shown decoded)",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosGzipResponse"
+            },
+            "headers": {
+              "Content-Encoding": {
+                "type": "string",
+                "description": "gzip"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chaos/redirect/done": {
+      "get": {
+        "description": "Reports the HTTP method actually received plus body_length and body_sha256 of the received body, so you can verify whether your client preserved method and body across 307/308 redirects. Body above 1 MiB is rejected with 413.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Final destination of the redirect chain",
+        "responses": {
+          "200": {
+            "description": "Method and body metadata as received",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosRedirectResponse"
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE - body exceeds 1 MiB",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Reports the HTTP method actually received plus body_length and body_sha256 of the received body, so you can verify whether your client preserved method and body across 307/308 redirects. Body above 1 MiB is rejected with 413.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Final destination of the redirect chain",
+        "responses": {
+          "200": {
+            "description": "Method and body metadata as received",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosRedirectResponse"
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE - body exceeds 1 MiB",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/redirect/{n}": {
+      "get": {
+        "description": "Redirects N times (1-10) before landing on /chaos/redirect/done. The optional type (301, 302, 307, 308; default 302) is propagated through every hop. 307/308 require clients to preserve method and body; 301/302 behaviour is client-specific. Accepts GET and POST so method preservation is observable at the final hop.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Start a redirect chain of N hops",
+        "parameters": [
+          {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+            "example": 3,
+            "description": "Number of redirects (1-10)",
+            "name": "n",
+            "in": "path",
+            "required": true
+          },
+          {
+            "enum": [
+              301,
+              302,
+              307,
+              308
+            ],
+            "type": "integer",
+            "default": 302,
+            "description": "Redirect status code: 301, 302, 307 or 308",
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Location header points to the next hop (or /chaos/redirect/done)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "INVALID_REDIRECT_COUNT (n <= 0 or not an integer), TOO_MANY_REDIRECTS (n > 10), INVALID_REDIRECT_TYPE",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Redirects N times (1-10) before landing on /chaos/redirect/done. The optional type (301, 302, 307, 308; default 302) is propagated through every hop. 307/308 require clients to preserve method and body; 301/302 behaviour is client-specific. Accepts GET and POST so method preservation is observable at the final hop.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Start a redirect chain of N hops",
+        "parameters": [
+          {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+            "example": 3,
+            "description": "Number of redirects (1-10)",
+            "name": "n",
+            "in": "path",
+            "required": true
+          },
+          {
+            "enum": [
+              301,
+              302,
+              307,
+              308
+            ],
+            "type": "integer",
+            "default": 302,
+            "description": "Redirect status code: 301, 302, 307 or 308",
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Location header points to the next hop (or /chaos/redirect/done)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "INVALID_REDIRECT_COUNT (n <= 0 or not an integer), TOO_MANY_REDIRECTS (n > 10), INVALID_REDIRECT_TYPE",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/status/{code}": {
+      "get": {
+        "description": "Responds with the requested status code (200-599). Body is {\"status_code\", \"message\"} where message is Go's http.StatusText (empty string for non-standard codes such as 599). No body is written for 204, 205 and 304. Use it to exercise client retry logic, error handling and boundary tests.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Return an arbitrary HTTP status code",
+        "parameters": [
+          {
+            "maximum": 599,
+            "minimum": 200,
+            "type": "integer",
+            "example": 503,
+            "description": "HTTP status code (200-599)",
+            "name": "code",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Any 2xx-5xx code except 204/205/304 carries this body",
+            "schema": {
+              "$ref": "#/definitions/models.ChaosStatusResponse"
+            }
+          },
+          "400": {
+            "description": "INVALID_STATUS_CODE - code outside 200-599 or not an integer",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/chaos/timeout": {
+      "get": {
+        "description": "Keeps the connection open for `after` seconds (default 8, max 60; larger values are clamped) and then returns 504 GATEWAY_TIMEOUT. Use it to practice client read timeouts: set your client timeout below `after` to see it fire. Values near 60 may hit the Cloudflare edge timeout in production.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Chaos"
+        ],
+        "summary": "Hold the connection, then respond 504",
+        "parameters": [
+          {
+            "type": "number",
+            "default": 8,
+            "description": "Seconds to hold before responding (0-60)",
+            "name": "after",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "INVALID_TIMEOUT - negative, non-numeric, NaN or Inf",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "504": {
+            "description": "GATEWAY_TIMEOUT - simulated upstream timeout after the hold",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/files": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "The files uploaded with THIS token, newest first. There is no public listing of every upload on purpose: the id is a capability, and an enumerable index would turn the sandbox into a file host. Anonymous uploads appear in nobody's list.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Files"
+        ],
+        "summary": "My files",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+            "default": 20,
+            "description": "Page size",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.FileListResponse"
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "MISSING_TOKEN or INVALID_TOKEN",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/files/upload": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {}
+        ],
+        "description": "Stores a file for 24 hours and returns its metadata. The media type in `content_type` is **detected from the content** (first 512 bytes); `declared_type` only echoes what the client claimed and never influences the decision.\n\nValidation, in this exact order: a body larger than 5 MiB + 64 KiB is `413`; a body that is not parseable multipart is `400 INVALID_MULTIPART`; a missing `file` field is `400 NO_FILE`; a part over 5 MiB is `413`; an empty part is `400 EMPTY_FILE`; a description over 200 characters is `400`; an extension outside `.png .jpg .jpeg .pdf .txt .csv .json` is `415`; a supported extension whose content sniffs as something else is `422 CORRUPTED_FILE`; an exhausted payload budget is `503`.\n\nNote that `.csv` and `.json` are detected as `text/plain` — content sniffing cannot tell them apart from a text file, and that limitation is part of the exercise.\n\nThe Bearer token is **optional**: without it the upload is anonymous (reachable only by its id, never listed); with it the file also appears in `GET /files`. A token that is present but invalid is a `401`, never a silent anonymous upload.",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Files"
+        ],
+        "summary": "Upload a file (multipart)",
+        "parameters": [
+          {
+            "type": "file",
+            "description": "The file itself (at most 5 MiB)",
+            "name": "file",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "example": "a screenshot for the bug report",
+            "description": "Free-text note stored with the file",
+            "name": "description",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/models.UploadResponse"
+            }
+          },
+          "400": {
+            "description": "NO_FILE, EMPTY_FILE, INVALID_MULTIPART or VALIDATION_ERROR",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "a token was presented but is invalid or expired",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "413": {
+            "description": "FILE_TOO_LARGE",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "422": {
+            "description": "CORRUPTED_FILE",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "429": {
+            "description": "RATE_LIMIT_EXCEEDED",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          },
+          "503": {
+            "description": "STORAGE_LIMIT_REACHED",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        },
+        "x-auth-optional": true
+      }
+    },
+    "/files/{id}": {
+      "get": {
+        "description": "Metadata only, no content. Public: the id is the capability. The owner is never disclosed.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Files"
+        ],
+        "summary": "File metadata",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f",
+            "description": "File id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.FileMetaResponse"
+            }
+          },
+          "404": {
+            "description": "FILE_NOT_FOUND",
+            "schema": {
+              "$ref": "#/definitions/models.ErrorResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {}
+        ],
+        "description": "Removes the file and frees its share of the payload budget. An anonymous file can be deleted by anyone holding its id (the id is the capability); a file uploaded with a token can only be deleted by that owner — for anybody else the answer is the same `404` as for a file that does not exist.",
+        "produces": [
+          "applicati
+… truncated (214502 chars in total)
