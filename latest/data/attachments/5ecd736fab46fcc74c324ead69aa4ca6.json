@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "json: cannot unmarshal number into Go struct field StoreLoginRequest.username of type string"
+  },
+  "timestamp": "2026-10-28T06:17:33.799887761Z",
+  "request_id": "7a80b3ef-ddf2-43ba-80ef-df60b135e2b6"
+}

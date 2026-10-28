@@ -1,0 +1,76 @@
+{
+  "users": [
+    {
+      "id": "6ae192268a6e647a79dcd680",
+      "email": "bzda979ctp@play-qa.com",
+      "username": "user_1s8wof13",
+      "profile": {
+        "first_name": "Daniel",
+        "last_name": "Lopez"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-28T06:11:50.448Z",
+        "updated_at": "2026-10-28T06:11:50.448Z",
+        "expires_at": "2026-10-29T06:11:50.448Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    },
+    {
+      "id": "6ae192258a6e647a79dcd67c",
+      "email": "sandbox-5f066e2bebe323481d43dbf8be81fad2@play-qa.com",
+      "username": "sandbox_5f066e2bebe323481d43",
+      "profile": {
+        "first_name": "Sandbox",
+        "last_name": "User"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-28T06:11:49.673Z",
+        "updated_at": "2026-10-28T06:11:49.673Z",
+        "expires_at": "2026-10-29T06:11:49.673Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    }
+  ],
+  "page": 1,
+  "per_page": 2,
+  "total": 3342,
+  "total_pages": 1671
+}
