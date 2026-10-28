@@ -84,8 +84,11 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen
       - name: Run tests (${{ matrix.group }})
-        # exit code 5 = "no tests collected" — a custom marker expression may select nothing in one group
-        run: uv run pytest -m "$MARKERS" ${{ matrix.epics }} || [ $? -eq 5 ]
+        # exit code 5 = "no tests collected" — a custom marker expression may select nothing in one group.
+        # The origin intermittently stalls > REQUEST_TIMEOUT on random endpoints (CLAUDE.md §8): a scenario that dies
+        # of an uncaught ReadTimeout reruns ONCE, whole and with fresh data (never a replayed request, never an
+        # assertion failure); a second timeout still fails the job.
+        run: uv run pytest -m "$MARKERS" ${{ matrix.epics }} --reruns 1 --only-rerun ReadTimeout || [ $? -eq 5 ]
       - name: Upload allure-results
         if: always()
         uses: actions/upload-artifact@v7

@@ -134,7 +134,8 @@ The old JS → Python porting table (`{string}` → `"{x}"`, `ctx.get(v, true).d
 - Context passthrough: unknown keys resolve to the literal. Don't create context keys that collide with
   literals used in assertions (bio → `profileBio`).
 - Rate limits are **paced, never retried** — per endpoint in `play_api.pacing` (≥ refill interval between two calls
-  of the same bucket). No 429 scenarios: they would drain the shared per-IP buckets.
+  of the same bucket). No 429 scenarios: they would drain the shared per-IP buckets. The only retries: one
+  request-level retry on a dropped keep-alive connection, and one whole-scenario CI rerun on `ReadTimeout` (§8).
 - Shared data (users list ≈ 400 users from other clients): assert exact counts only inside a filter that isolates
   your own data (`Generate unique country` + `filter=address.country:${country}`).
 - Single-threaded (`ScenarioContext` global store) — do not add pytest-xdist; parallelism = the CI matrix (one IP each).
@@ -210,6 +211,10 @@ Chaos / buggy / challenges / misc
   connections without notice (every response says `connection: keep-alive`; the `cf-ray` colo can change mid-job).
   It failed the scheduled `auth` job 2026-10-26/27 (1–5 ms after the previous response, random scenario).
   `client.request()` retries it ONCE, re-paced, with a `Retry` attachment; httpx itself never retries.
+- `ReadTimeout` after REQUEST_TIMEOUT (20 s) on random endpoints, GET and POST alike — the origin stalls intermittently
+  (2026-10-28: 13 of ~490 local requests > 20 s, one failed CI job in 4 of 5 runs, each green on re-run). CI reruns
+  such a scenario ONCE, whole (`--reruns 1 --only-rerun ReadTimeout`, pytest-rerunfailures): fresh data, cleanups
+  already ran, no request replayed. Never a request-level retry (POSTs are not idempotent); local runs don't rerun.
 
 ## 9. Pitfalls specific to the Python stack
 

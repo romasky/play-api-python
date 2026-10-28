@@ -18,6 +18,7 @@ dev = [
   "ruff>=0.16.5",
   "mypy>=2.3.1",
   "websockets>=15",
+  "pytest-rerunfailures>=15",
 ]
 # ub-mode quality gates (tools/ub_gates.py) — local only, not installed by `uv sync`: `uv run --group ub …`.
 # Pinned commits; the first run downloads the tree-sitter Python grammar (network).
