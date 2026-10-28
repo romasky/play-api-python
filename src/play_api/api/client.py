@@ -149,6 +149,7 @@ def request(
     elif isinstance(json, RawJson):
         json, content = None, str(json)
         headers = [("Content-Type", "application/json"), *_wire_headers(headers)]
+    seconds = settings.request_timeout if timeout is None else timeout
 
     def send() -> httpx.Response:
         pacing.throttle(method, path)
@@ -161,7 +162,7 @@ def request(
             params=params,
             headers=_wire_headers(headers),
             follow_redirects=follow_redirects,
-            timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
+            timeout=seconds,
         )
 
     timed_out: httpx.TimeoutException | None = None
@@ -177,7 +178,7 @@ def request(
                 response = send()
         except httpx.TimeoutException as exc:
             # an expected outcome in timeout scenarios: note it, leave the sub-step green, re-raise below
-            attach(f"{type(exc).__name__} after the {timeout} s client timeout", "Timeout", allure.attachment_type.TEXT)
+            attach(f"{type(exc).__name__} after the {seconds} s client timeout", "Timeout", allure.attachment_type.TEXT)
             timed_out = exc
         else:
             for hop in response.history:
