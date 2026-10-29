@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_MULTIPART",
+    "message": "The body is not valid multipart/form-data",
+    "details": "Send the file as multipart/form-data with a `file` field (curl: -F \"file=@sample.png\")"
+  },
+  "timestamp": "2026-10-29T15:02:57.2329749Z",
+  "request_id": "70173e34-7b36-4b98-921b-ff0ab1637693"
+}

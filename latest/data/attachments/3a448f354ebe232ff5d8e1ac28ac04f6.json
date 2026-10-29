@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_FIELD",
+    "message": "filter field is not filterable",
+    "details": "filter field is not filterable: filter field \"bogus\" is not filterable; allowed: address.country, employment.status, is_active, is_premium, is_verified, role, settings.language, settings.theme"
+  },
+  "timestamp": "2026-10-29T15:01:46.517765864Z",
+  "request_id": "fc2a248d-e9ac-471a-8f35-1b6cf62e20a0"
+}

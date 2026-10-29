@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_FIELD",
+    "message": "filter field is not filterable",
+    "details": "filter field is not filterable: filter field \"password\" is not filterable; allowed: address.country, employment.status, is_active, is_premium, is_verified, role, settings.language, settings.theme"
+  },
+  "timestamp": "2026-10-29T15:01:46.665662219Z",
+  "request_id": "4fff2b95-17ab-4ce8-80b0-0a347f1e45c7"
+}

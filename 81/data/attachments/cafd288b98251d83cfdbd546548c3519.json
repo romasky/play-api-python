@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_TOKEN_FORMAT",
+    "message": "Invalid token format",
+    "details": "the token is not a well-formed JWT: token is malformed: could not base64 decode signature: illegal base64 data at input byte 43"
+  },
+  "timestamp": "2026-10-29T15:04:10.918441678Z",
+  "request_id": "a228b78c-61c6-4fc5-9510-41389569d17e"
+}
