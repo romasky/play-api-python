@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_TOKEN_FORMAT",
+    "message": "Invalid token format",
+    "details": "Expected three dot-separated base64url segments"
+  },
+  "timestamp": "2026-10-30T14:57:22.580761277Z",
+  "request_id": "1d6755cf-b43b-4e3a-8f38-f4bc84dd9de5"
+}

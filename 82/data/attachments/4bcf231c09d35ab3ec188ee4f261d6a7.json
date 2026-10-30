@@ -1,0 +1,76 @@
+{
+  "users": [
+    {
+      "id": "6ae4afc68a6e647a79dcf068",
+      "email": "0jmlb8h4ls@play-qa.com",
+      "username": "user_vsyv2xyd",
+      "profile": {
+        "first_name": "Whitney",
+        "last_name": "Holt"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-30T14:55:02.072Z",
+        "updated_at": "2026-10-30T14:55:02.072Z",
+        "expires_at": "2026-10-31T14:55:02.072Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    },
+    {
+      "id": "6ae4afc58a6e647a79dcf062",
+      "email": "sandbox-40be5f257c0babac531f8e598e06c1b1@play-qa.com",
+      "username": "sandbox_40be5f257c0babac531f",
+      "profile": {
+        "first_name": "Sandbox",
+        "last_name": "User"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-30T14:55:01.25Z",
+        "updated_at": "2026-10-30T14:55:01.25Z",
+        "expires_at": "2026-10-31T14:55:01.25Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    }
+  ],
+  "page": 1,
+  "per_page": 2,
+  "total": 1637,
+  "total_pages": 819
+}

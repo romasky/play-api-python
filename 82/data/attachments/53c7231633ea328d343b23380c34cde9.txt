@@ -1,0 +1,2473 @@
+basePath: /api/v1
+definitions:
+  handlers.RecaptchaRequest:
+    properties:
+      token:
+        example: test-recaptcha-token
+        type: string
+    required:
+    - token
+    type: object
+  models.Address:
+    properties:
+      apartment:
+        example: "42"
+        type: string
+      building:
+        example: "1"
+        type: string
+      city:
+        example: San Francisco
+        type: string
+      coordinates:
+        $ref: '#/definitions/models.GeoPoint'
+      country:
+        example: United States
+        type: string
+      state:
+        example: California
+        type: string
+      street:
+        example: 123 Main St
+        type: string
+      zip_code:
+        example: "94102"
+        type: string
+    type: object
+  models.AdminStatsResponse:
+    properties:
+      by_role:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      generated_at:
+        type: string
+      total:
+        example: 42
+        type: integer
+      with_active_token:
+        example: 7
+        type: integer
+    type: object
+  models.AdminUserItem:
+    properties:
+      access_token:
+        description: только при создании
+        type: string
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      has_active_token:
+        description: |-
+          HasActiveToken reports whether access_token is non-empty, i.e. whether
+          the account is currently logged in. The token itself is never included:
+          an admin list that leaked bearer tokens would be account takeover.
+        type: boolean
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.Metadata'
+      profile:
+        $ref: '#/definitions/models.Profile'
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        type: string
+    type: object
+  models.AdminUsersListResponse:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/models.AdminUserItem'
+        type: array
+    type: object
+  models.BugCatalogResponse:
+    properties:
+      bugs:
+        items:
+          $ref: '#/definitions/models.BugSpecDTO'
+        type: array
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 3
+        type: integer
+    type: object
+  models.BugReportDetailResponse:
+    properties:
+      actual:
+        example: 9 items, id 10 is missing
+        type: string
+      bug_id:
+        example: pagination-off-by-one
+        type: string
+      created_at:
+        type: string
+      expected:
+        example: 10 items with ids 1..10
+        type: string
+      expires_at:
+        type: string
+      report_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      score:
+        $ref: '#/definitions/models.ScoreDTO'
+      severity:
+        example: medium
+        type: string
+      steps:
+        items:
+          type: string
+        type: array
+      success:
+        example: true
+        type: boolean
+      title:
+        example: Last item of a full page is missing
+        type: string
+    type: object
+  models.BugReportListItem:
+    properties:
+      bug_id:
+        example: pagination-off-by-one
+        type: string
+      created_at:
+        type: string
+      report_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      score_total:
+        example: 85
+        type: integer
+      severity:
+        example: medium
+        type: string
+      title:
+        example: Last item of a full page is missing
+        type: string
+    type: object
+  models.BugReportListResponse:
+    properties:
+      reports:
+        items:
+          $ref: '#/definitions/models.BugReportListItem'
+        type: array
+      returned:
+        example: 2
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 3
+        type: integer
+      user_id:
+        example: 652f1a2b3c4d5e6f7a8b9c0d
+        type: string
+    type: object
+  models.BugReportRequest:
+    properties:
+      actual:
+        example: 9 items, id 10 is missing
+        maxLength: 2000
+        type: string
+      bug_id:
+        example: pagination-off-by-one
+        maxLength: 64
+        type: string
+      expected:
+        example: 10 items with ids 1..10
+        maxLength: 2000
+        type: string
+      severity:
+        example: medium
+        type: string
+      steps:
+        example:
+        - GET /api/v1/buggy/items?page=1&per_page=10
+        - Count the returned items
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+      title:
+        example: Last item of a full page is missing
+        maxLength: 200
+        type: string
+    required:
+    - actual
+    - bug_id
+    - expected
+    - severity
+    - steps
+    - title
+    type: object
+  models.BugReportResponse:
+    properties:
+      bug_id:
+        example: pagination-off-by-one
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      owner:
+        example: user
+        type: string
+      report_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      saved:
+        example: true
+        type: boolean
+      score:
+        $ref: '#/definitions/models.ScoreDTO'
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.BugSpecDTO:
+    properties:
+      bug_id:
+        example: pagination-off-by-one
+        type: string
+      description:
+        example: bug.pagination-off-by-one.desc
+        type: string
+      expected:
+        example: bug.pagination-off-by-one.expected
+        type: string
+      method:
+        example: GET
+        type: string
+      path:
+        example: /buggy/items
+        type: string
+      title:
+        example: bug.pagination-off-by-one.title
+        type: string
+    type: object
+  models.BuggyItem:
+    properties:
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Practice item 01
+        type: string
+      price:
+        example: 1.25
+        type: number
+      sku:
+        example: ITEM-001
+        type: string
+    type: object
+  models.BuggyItemsResponse:
+    properties:
+      bug_id:
+        example: pagination-off-by-one
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.BuggyItem'
+        type: array
+      page:
+        example: 1
+        type: integer
+      per_page:
+        example: 10
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 25
+        type: integer
+    type: object
+  models.CartItem:
+    properties:
+      price:
+        example: 10
+        type: number
+      qty:
+        example: 2
+        maximum: 1000
+        minimum: 1
+        type: integer
+    required:
+    - price
+    - qty
+    type: object
+  models.CartTotalRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.CartItem'
+        maxItems: 50
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  models.CartTotalResponse:
+    properties:
+      bug_id:
+        example: cart-total-wrong
+        type: string
+      currency:
+        example: USD
+        type: string
+      items_count:
+        example: 2
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 20
+        type: number
+    type: object
+  models.ChallengeDTO:
+    properties:
+      category:
+        example: crud
+        type: string
+      description:
+        example: challenge.delete-user-404.desc
+        type: string
+      difficulty:
+        example: easy
+        type: string
+      hint_count:
+        example: 3
+        type: integer
+      id:
+        example: delete-user-404
+        type: string
+      params:
+        items:
+          $ref: '#/definitions/models.ParamSpecDTO'
+        type: array
+      points:
+        example: 10
+        type: integer
+      title:
+        example: challenge.delete-user-404.title
+        type: string
+    type: object
+  models.ChallengeListResponse:
+    properties:
+      challenges:
+        items:
+          $ref: '#/definitions/models.ChallengeDTO'
+        type: array
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 4
+        type: integer
+    type: object
+  models.ChaosCacheResponse:
+    properties:
+      etag:
+        example: chaos-v1
+        type: string
+    type: object
+  models.ChaosDelayResponse:
+    properties:
+      clamped:
+        example: false
+        type: boolean
+      delayed_seconds:
+        example: 3
+        type: number
+    type: object
+  models.ChaosEchoResponse:
+    properties:
+      body:
+        type: object
+      body_base64:
+        type: string
+      client_ip:
+        example: 1.2.3.4
+        type: string
+      encoding:
+        example: base64
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      method:
+        example: POST
+        type: string
+      path:
+        example: /api/v1/chaos/echo
+        type: string
+      query:
+        additionalProperties:
+          type: string
+        type: object
+      raw_body:
+        type: string
+      request_id:
+        example: 3f1c2d0e-...
+        type: string
+      truncated:
+        example: false
+        type: boolean
+    type: object
+  models.ChaosFlakyResponse:
+    properties:
+      deterministic:
+        example: true
+        type: boolean
+      failed:
+        example: false
+        type: boolean
+      ok:
+        example: true
+        type: boolean
+      roll:
+        example: 0.21146163723468625
+        type: number
+      seed:
+        example: "20"
+        type: string
+    type: object
+  models.ChaosFlakySequenceResponse:
+    properties:
+      count:
+        example: 10
+        type: integer
+      fail_rate:
+        example: 0.5
+        type: number
+      fail_status:
+        example: 500
+        type: integer
+      fails_total:
+        example: 4
+        type: integer
+      first_success_index:
+        description: -1 если все шаги упали
+        example: 2
+        type: integer
+      seed:
+        example: "20"
+        type: string
+      steps:
+        items:
+          $ref: '#/definitions/models.ChaosFlakyStep'
+        type: array
+    type: object
+  models.ChaosFlakyStep:
+    properties:
+      failed:
+        example: true
+        type: boolean
+      index:
+        example: 1
+        type: integer
+      roll:
+        example: 0.026520406296100862
+        type: number
+      status:
+        example: 500
+        type: integer
+    type: object
+  models.ChaosFlakyStepResponse:
+    properties:
+      failed:
+        example: true
+        type: boolean
+      index:
+        example: 1
+        type: integer
+      roll:
+        example: 0.026520406296100862
+        type: number
+      seed:
+        example: "20"
+        type: string
+      status:
+        example: 500
+        type: integer
+    type: object
+  models.ChaosGzipResponse:
+    properties:
+      gzipped:
+        example: true
+        type: boolean
+      method:
+        example: GET
+        type: string
+      origin:
+        example: 1.2.3.4
+        type: string
+    type: object
+  models.ChaosRedirectResponse:
+    properties:
+      body_length:
+        example: 17
+        type: integer
+      body_sha256:
+        example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        type: string
+      message:
+        example: Reached final destination
+        type: string
+      method:
+        example: POST
+        type: string
+      redirected:
+        example: true
+        type: boolean
+    type: object
+  models.ChaosStatusResponse:
+    properties:
+      message:
+        example: Service Unavailable
+        type: string
+      status_code:
+        example: 503
+        type: integer
+    type: object
+  models.Contacts:
+    properties:
+      emergency_contact:
+        example: Jane Doe +1234567891
+        type: string
+      github:
+        example: https://github.com/johndoe
+        type: string
+      linkedin:
+        example: https://linkedin.com/in/johndoe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      phone_verified:
+        example: false
+        type: boolean
+      telegram:
+        example: '@johndoe'
+        type: string
+      website:
+        example: https://johndoe.com
+        type: string
+      whatsapp:
+        example: "+1234567890"
+        type: string
+    type: object
+  models.CreateAdminRequest:
+    properties:
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        example: user@example.com
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      profile:
+        $ref: '#/definitions/models.Profile'
+      seed_code:
+        description: |-
+          SeedCode is compared in constant time against ADMIN_SEED_CODE. Bounded
+          before any comparison so an anonymous caller cannot make the server hash
+          an arbitrarily long string.
+
+          Deliberately NOT `required`. With it, Gin rejects an absent field at bind
+          time with 400 VALIDATION_ERROR while a WRONG code answers 403 — and that
+          difference is an oracle: it tells a caller whether the field was read at
+          all. Absent and wrong must be the same answer, so the empty string falls
+          through to the constant-time comparison and fails there like any other
+          wrong value. Measured: with `required` the two cases were 400 and 403.
+        example: play-qa-admin
+        maxLength: 128
+        type: string
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - profile
+    - username
+    type: object
+  models.CreateMailboxRequest:
+    properties:
+      domain:
+        example: play-qa.com
+        type: string
+      local_part:
+        example: vlc001
+        type: string
+    type: object
+  models.CreateUserRequest:
+    properties:
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        example: user@example.com
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      profile:
+        $ref: '#/definitions/models.Profile'
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - profile
+    - username
+    type: object
+  models.Employment:
+    properties:
+      company:
+        example: Tech Corp
+        type: string
+      department:
+        example: Quality
+        type: string
+      position:
+        example: QA Engineer
+        type: string
+      salary:
+        $ref: '#/definitions/models.Money'
+      start_date:
+        example: 01.02.2020
+        type: string
+      status:
+        enum:
+        - employed
+        - unemployed
+        - student
+        - retired
+        - freelancer
+        example: employed
+        type: string
+    type: object
+  models.ErrorDetail:
+    properties:
+      code:
+        type: string
+      details:
+        type: string
+      field:
+        type: string
+      message:
+        type: string
+      validation:
+        items:
+          $ref: '#/definitions/models.ValidationError'
+        type: array
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/models.ErrorDetail'
+      request_id:
+        type: string
+      success:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  models.EventListResponse:
+    properties:
+      dropped_count:
+        description: |-
+          DroppedCount surfaces the trim so the UI can say "showing the last 100 of
+          137" rather than pretending nothing was evicted.
+        example: 0
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/models.EventSummary'
+        type: array
+      page:
+        example: 1
+        type: integer
+      per_page:
+        example: 20
+        type: integer
+      returned:
+        example: 7
+        type: integer
+      total:
+        example: 7
+        type: integer
+    type: object
+  models.EventSummary:
+    properties:
+      body_encoding:
+        example: utf8
+        type: string
+      body_preview:
+        example: '{"type":"charge.succeeded"'
+        type: string
+      body_size:
+        example: 412
+        type: integer
+      content_type:
+        example: application/json
+        type: string
+      id:
+        example: evt_3c91a04f7b2e8d16
+        type: string
+      method:
+        example: POST
+        type: string
+      received_at:
+        type: string
+      signature_valid:
+        type: boolean
+    type: object
+  models.FeedbackItem:
+    properties:
+      criterion:
+        example: severity_reasonable
+        type: string
+      key:
+        example: bugreport.feedback.severity_reasonable.fail
+        type: string
+      ok:
+        example: false
+        type: boolean
+      params:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  models.FileItem:
+    properties:
+      content_type:
+        example: image/png
+        type: string
+      created_at:
+        type: string
+      declared_type:
+        example: image/png
+        type: string
+      description:
+        example: a screenshot for the bug report
+        type: string
+      download_url:
+        example: /api/v1/files/fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f/download
+        type: string
+      expires_at:
+        type: string
+      file_id:
+        example: fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f
+        type: string
+      filename:
+        example: avatar.png
+        type: string
+      size:
+        example: 20480
+        type: integer
+    type: object
+  models.FileListResponse:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/models.FileItem'
+        type: array
+      returned:
+        example: 3
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 3
+        type: integer
+    type: object
+  models.FileMetaResponse:
+    properties:
+      content_type:
+        example: image/png
+        type: string
+      created_at:
+        type: string
+      declared_type:
+        example: image/png
+        type: string
+      description:
+        example: a screenshot for the bug report
+        type: string
+      download_url:
+        example: /api/v1/files/fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f/download
+        type: string
+      expires_at:
+        type: string
+      file_id:
+        example: fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f
+        type: string
+      filename:
+        example: avatar.png
+        type: string
+      size:
+        example: 20480
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.GeoPoint:
+    properties:
+      latitude:
+        example: 37.7749
+        type: number
+      longitude:
+        example: -122.4194
+        type: number
+    type: object
+  models.HintLevelDTO:
+    properties:
+      kind:
+        example: nudge
+        type: string
+      level:
+        example: 1
+        type: integer
+    type: object
+  models.HintsResponse:
+    properties:
+      challenge_id:
+        example: delete-user-404
+        type: string
+      hint_count:
+        example: 3
+        type: integer
+      levels:
+        items:
+          $ref: '#/definitions/models.HintLevelDTO'
+        type: array
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.InboxResponse:
+    properties:
+      created_at:
+        type: string
+      dropped_count:
+        example: 0
+        type: integer
+      event_count:
+        example: 0
+        type: integer
+      expires_at:
+        type: string
+      id:
+        example: wh_8f3a1c0b5d7e2a94
+        type: string
+      ingest_token:
+        example: 2d7f6b10-8c43-4a19-9e52-61f0b7c8d394
+        type: string
+      ingest_url:
+        example: https://play-qa.com/api/v1/webhooks/in/2d7f6b10-8c43-4a19-9e52-61f0b7c8d394
+        type: string
+      signing_secret:
+        example: whsec_***
+        type: string
+      token:
+        example: 0b9c1e4a-5f27-4f6b-9a18-2c7d0e3b4a51
+        type: string
+      total_received:
+        example: 0
+        type: integer
+    type: object
+  models.IngestResponse:
+    properties:
+      event_id:
+        example: evt_3c91a04f7b2e8d16
+        type: string
+      received:
+        example: true
+        type: boolean
+    type: object
+  models.InjectMessageRequest:
+    properties:
+      body:
+        example: This is the plain text body of the email.
+        type: string
+      from:
+        example: sender@example.com
+        type: string
+      html_body:
+        example: <h1>This is the HTML body</h1>
+        type: string
+      subject:
+        example: Test Email Subject
+        type: string
+    required:
+    - body
+    - from
+    - subject
+    type: object
+  models.JWTDecodeRequest:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTJmMWEyYjNjNGQ1ZTZmNzA4MTkyMDAifQ.7rYQ0m0Qk8Zr3nQbYq0m0Qk8Zr3nQbYq0m0Qk8Zr3nQ
+        type: string
+    required:
+    - token
+    type: object
+  models.JWTDecodeResponse:
+    properties:
+      expired:
+        example: true
+        type: boolean
+      expires_at:
+        description: |-
+          No omitempty on either: the contract is that the key is ALWAYS present
+          and carries null when the claim is absent or is not a number. A vanishing
+          key forces every client to tell "no exp" apart from "old server", which is
+          exactly the ambiguity the three-state signature_valid avoids.
+        type: string
+      header:
+        additionalProperties: true
+        type: object
+      issued_at:
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+      signature_valid:
+        example: false
+        type: boolean
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.JWTLoginRequest:
+    properties:
+      access_ttl_seconds:
+        description: |-
+          AccessTTLSeconds shortens the access token for practice. Absent means the
+          server default. A pointer so that "not sent" is distinguishable from 0.
+        example: 900
+        maximum: 900
+        minimum: 1
+        type: integer
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.JWTLoginResponse:
+    properties:
+      access_expires_in:
+        example: 900
+        type: integer
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTJmMWEyYjNjNGQ1ZTZmNzA4MTkyMDAifQ.7rYQ0m0Qk8Zr3nQbYq0m0Qk8Zr3nQbYq0m0Qk8Zr3nQ
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      refresh_expires_in:
+        example: 86400
+        type: integer
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoicmVmcmVzaCJ9.9sZQ2o2Sm0Bt5pSdAs2o2Sm0Bt5pSdAs2o2Sm0Bt5pS
+        type: string
+      success:
+        example: true
+        type: boolean
+      token_type:
+        example: Bearer
+        type: string
+      user_id:
+        example: 652f1a2b3c4d5e6f70819200
+        type: string
+    type: object
+  models.JWTMeResponse:
+    properties:
+      claims:
+        additionalProperties: true
+        type: object
+      email:
+        example: user@example.com
+        type: string
+      sub:
+        example: 652f1a2b3c4d5e6f70819200
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.JWTRefreshRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoicmVmcmVzaCJ9.9sZQ2o2Sm0Bt5pSdAs2o2Sm0Bt5pSdAs2o2Sm0Bt5pS
+        type: string
+    required:
+    - refresh_token
+    type: object
+  models.JWTRefreshResponse:
+    properties:
+      access_expires_in:
+        example: 900
+        type: integer
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTJmMWEyYjNjNGQ1ZTZmNzA4MTkyMDAifQ.7rYQ0m0Qk8Zr3nQbYq0m0Qk8Zr3nQbYq0m0Qk8Zr3nQ
+        type: string
+      success:
+        example: true
+        type: boolean
+      token_type:
+        example: Bearer
+        type: string
+    type: object
+  models.LoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  models.MailboxResponse:
+    properties:
+      created_at:
+        type: string
+      domain:
+        example: play-qa.com
+        type: string
+      email_address:
+        example: ab12cd34@play-qa.com
+        type: string
+      expires_at:
+        type: string
+      id:
+        example: 507f1f77bcf86cd799439011
+        type: string
+      token:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  models.MessageListResponse:
+    properties:
+      count:
+        type: integer
+      messages:
+        items:
+          $ref: '#/definitions/models.MessageResponse'
+        type: array
+    type: object
+  models.MessageResponse:
+    properties:
+      body:
+        example: This is the full plain text body of the email.
+        type: string
+      body_preview:
+        example: This is the plain text body...
+        type: string
+      from:
+        example: sender@example.com
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      html_body:
+        example: <h1>This is the HTML body</h1>
+        type: string
+      id:
+        example: 507f1f77bcf86cd799439012
+        type: string
+      received_at:
+        type: string
+      subject:
+        example: Test Email Subject
+        type: string
+    type: object
+  models.Metadata:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        description: TTL поле!
+        type: string
+      is_active:
+        type: boolean
+      is_premium:
+        type: boolean
+      is_verified:
+        type: boolean
+      last_login_at:
+        type: string
+      last_login_ip:
+        type: string
+      login_count:
+        type: integer
+      role:
+        enum:
+        - user
+        - admin
+        - moderator
+        type: string
+      source:
+        description: 'откуда пришёл: web, mobile, api'
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      user_agent:
+        type: string
+    type: object
+  models.Money:
+    properties:
+      amount:
+        example: 120000
+        type: number
+      currency:
+        example: USD
+        type: string
+    type: object
+  models.ParamSpecDTO:
+    properties:
+      name:
+        example: jwt
+        type: string
+      required:
+        example: true
+        type: boolean
+      type:
+        example: string
+        type: string
+    type: object
+  models.PatchUserRequest:
+    properties:
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        example: user@example.com
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      profile:
+        $ref: '#/definitions/models.Profile'
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    type: object
+  models.Profile:
+    properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      bio:
+        example: Software developer passionate about QA
+        maxLength: 500
+        type: string
+      date_of_birth:
+        example: 15.03.1990
+        type: string
+      first_name:
+        example: John
+        minLength: 2
+        type: string
+      gender:
+        enum:
+        - male
+        - female
+        - other
+        - prefer_not_to_say
+        example: male
+        type: string
+      interests:
+        example:
+        - programming
+        - testing
+        items:
+          type: string
+        type: array
+      last_name:
+        example: Doe
+        minLength: 2
+        type: string
+      middle_name:
+        example: Michael
+        type: string
+    required:
+    - first_name
+    - last_name
+    type: object
+  models.ProgressHintsItem:
+    properties:
+      challenge_id:
+        example: delete-user-404
+        type: string
+      revealed:
+        items:
+          $ref: '#/definitions/models.RevealedHintDTO'
+        type: array
+      revealed_count:
+        example: 2
+        type: integer
+    type: object
+  models.ProgressResponse:
+    properties:
+      hints:
+        description: |-
+          Hints (feature 09): the player's revealed hints per challenge (solved or
+          not), registry order, only challenges with revealed_count > 0; always an array.
+        items:
+          $ref: '#/definitions/models.ProgressHintsItem'
+        type: array
+      solved:
+        items:
+          $ref: '#/definitions/models.SolvedItem'
+        type: array
+      solved_count:
+        example: 1
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total_challenges:
+        example: 4
+        type: integer
+      total_points:
+        example: 10
+        type: integer
+      user_id:
+        example: 652f1a2b3c4d5e6f7a8b9c0d
+        type: string
+    type: object
+  models.RevealRequest:
+    properties:
+      level:
+        example: 1
+        type: integer
+    required:
+    - level
+    type: object
+  models.RevealResponse:
+    properties:
+      challenge_id:
+        example: delete-user-404
+        type: string
+      has_more:
+        example: true
+        type: boolean
+      hint:
+        example: challenge.delete-user-404.hint1
+        type: string
+      hint_count:
+        example: 3
+        type: integer
+      kind:
+        example: nudge
+        type: string
+      level:
+        example: 1
+        type: integer
+      revealed:
+        items:
+          $ref: '#/definitions/models.RevealedHintDTO'
+        type: array
+      revealed_count:
+        example: 1
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.RevealedHintDTO:
+    properties:
+      hint:
+        example: challenge.delete-user-404.hint1
+        type: string
+      kind:
+        example: nudge
+        type: string
+      level:
+        example: 1
+        type: integer
+    type: object
+  models.SMTPResponse:
+    properties:
+      accepted:
+        example: false
+        type: boolean
+      category:
+        example: recipient
+        type: string
+      enhanced_status:
+        example: 5.2.2
+        type: string
+      message:
+        example: 'Requested mail action aborted: mailbox full'
+        type: string
+      message_id:
+        description: MessageID is populated only when accepted is true (the stored
+          message's id).
+        example: 507f1f77bcf86cd799439012
+        type: string
+      smtp_code:
+        example: "552"
+        type: string
+      to:
+        example: mailbox-full@play-qa.com
+        type: string
+    type: object
+  models.SandboxTarget:
+    properties:
+      access_token:
+        example: usr_1735000000_0123456789abcdef0123456789abcdef
+        type: string
+      email:
+        example: sandbox-0123456789abcdef0123456789abcdef@play-qa.com
+        type: string
+      note:
+        example: login with the credentials to get a token
+        type: string
+      password:
+        example: 0123456789abcdef01234567
+        type: string
+      user_id:
+        example: 652f1a2b3c4d5e6f7a8b9c0d
+        type: string
+      username:
+        example: sandbox_0123456789abcdef0123
+        type: string
+    type: object
+  models.ScheduleResponse:
+    properties:
+      bug_id:
+        example: timezone-shift
+        type: string
+      event_local:
+        example: "09:00"
+        type: string
+      event_start:
+        example: "2026-03-29T12:00:00+03:00"
+        type: string
+      event_start_utc:
+        example: "2026-03-29T09:00:00Z"
+        type: string
+      requested_date:
+        example: "2026-03-29"
+        type: string
+      success:
+        example: true
+        type: boolean
+      tz:
+        example: Europe/Moscow
+        type: string
+    type: object
+  models.ScoreBreakdown:
+    properties:
+      expected_actual:
+        example: 25
+        type: integer
+      has_steps:
+        example: 25
+        type: integer
+      severity_reasonable:
+        example: 15
+        type: integer
+      steps_reproducible:
+        example: 20
+        type: integer
+      title_quality:
+        example: 15
+        type: integer
+    type: object
+  models.ScoreDTO:
+    properties:
+      breakdown:
+        $ref: '#/definitions/models.ScoreBreakdown'
+      feedback:
+        items:
+          $ref: '#/definitions/models.FeedbackItem'
+        type: array
+      max:
+        example: 100
+        type: integer
+      total:
+        example: 85
+        type: integer
+    type: object
+  models.SendToRequest:
+    properties:
+      body:
+        example: This is the plain text body of the email.
+        type: string
+      from:
+        example: app@example.com
+        type: string
+      subject:
+        example: Test Email Subject
+        type: string
+      to:
+        example: mailbox-full@play-qa.com
+        type: string
+    required:
+    - to
+    type: object
+  models.SetRoleRequest:
+    properties:
+      role:
+        example: admin
+        type: string
+    required:
+    - role
+    type: object
+  models.Settings:
+    properties:
+      email_notifications:
+        example: true
+        type: boolean
+      language:
+        example: en
+        type: string
+      notifications_enabled:
+        example: true
+        type: boolean
+      private_profile:
+        example: false
+        type: boolean
+      sms_notifications:
+        example: false
+        type: boolean
+      theme:
+        enum:
+        - light
+        - dark
+        - system
+        example: dark
+        type: string
+      timezone:
+        example: America/Los_Angeles
+        type: string
+      two_factor_enabled:
+        example: false
+        type: boolean
+    type: object
+  models.SolvedItem:
+    properties:
+      attempt_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      category:
+        example: crud
+        type: string
+      challenge_id:
+        example: delete-user-404
+        type: string
+      hints_used:
+        description: 'feature 09: hint level revealed when the solve was recorded'
+        example: 1
+        type: integer
+      points:
+        example: 10
+        type: integer
+      solved_at:
+        type: string
+    type: object
+  models.StartResponse:
+    properties:
+      already_solved:
+        example: false
+        type: boolean
+      attempt_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      can_reset:
+        example: true
+        type: boolean
+      challenge_id:
+        example: delete-user-404
+        type: string
+      expires_at:
+        type: string
+      solved_at:
+        type: string
+      started_at:
+        type: string
+      status:
+        example: open
+        type: string
+      success:
+        example: true
+        type: boolean
+      target:
+        $ref: '#/definitions/models.SandboxTarget'
+      target_missing:
+        example: false
+        type: boolean
+    type: object
+  models.StoreLoginRequest:
+    properties:
+      password:
+        example: secret_sauce
+        maxLength: 128
+        minLength: 1
+        type: string
+      username:
+        example: problem_user
+        maxLength: 64
+        minLength: 1
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.StoreLoginResponse:
+    properties:
+      behavior:
+        $ref: '#/definitions/models.StorePersonaBehavior'
+      message:
+        example: Welcome, problem_user
+        type: string
+      persona:
+        example: problem_user
+        type: string
+      session:
+        example: store_problem_user_1757520000
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.StorePersonaBehavior:
+    properties:
+      catalog_latency_ms:
+        description: client shows a loader this long before the catalog
+        example: 0
+        type: integer
+      flaky_add_to_cart:
+        example: false
+        type: boolean
+      login_latency_ms:
+        description: server-side delay already applied to this login
+        example: 0
+        type: integer
+      visual_bugs:
+        description: 'problem_user: broken images, shifted names, wrong price'
+        example: false
+        type: boolean
+    type: object
+  models.UpdateUserRequest:
+    properties:
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        example: user@example.com
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      profile:
+        $ref: '#/definitions/models.Profile'
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    required:
+    - email
+    - profile
+    - username
+    type: object
+  models.UploadResponse:
+    properties:
+      content_type:
+        example: image/png
+        type: string
+      created_at:
+        type: string
+      declared_type:
+        example: image/png
+        type: string
+      description:
+        example: a screenshot for the bug report
+        type: string
+      download_url:
+        example: /api/v1/files/fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f/download
+        type: string
+      expires_at:
+        type: string
+      file_id:
+        example: fil_9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f
+        type: string
+      filename:
+        example: avatar.png
+        type: string
+      owner:
+        description: '"user" | "anonymous"'
+        example: anonymous
+        type: string
+      size:
+        example: 20480
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.UserResponse:
+    properties:
+      access_token:
+        description: только при создании
+        type: string
+      address:
+        $ref: '#/definitions/models.Address'
+      contacts:
+        $ref: '#/definitions/models.Contacts'
+      email:
+        type: string
+      employment:
+        $ref: '#/definitions/models.Employment'
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.Metadata'
+      profile:
+        $ref: '#/definitions/models.Profile'
+      settings:
+        $ref: '#/definitions/models.Settings'
+      username:
+        type: string
+    type: object
+  models.UsersListResponse:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        description: exact number of matches before pagination (feature 03)
+        type: integer
+      total_pages:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/models.UserResponse'
+        type: array
+    type: object
+  models.ValidationError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+      value:
+        type: string
+    type: object
+  models.VerifyRequest:
+    properties:
+      attempt_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      params:
+        type: object
+    type: object
+  models.VerifyResponse:
+    properties:
+      already_solved:
+        example: false
+        type: boolean
+      attempt_id:
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        type: string
+      challenge_id:
+        example: delete-user-404
+        type: string
+      detail:
+        example: target still exists — DELETE it with the sandbox token, then verify
+        type: string
+      message:
+        example: challenge.solved
+        type: string
+      points_awarded:
+        example: 10
+        type: integer
+      solved:
+        example: true
+        type: boolean
+      solved_at:
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.WebhookEvent:
+    properties:
+      body:
+        type: string
+      body_encoding:
+        type: string
+      body_size:
+        type: integer
+      content_type:
+        type: string
+      headers:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        description: |-
+          Headers and Query keep REPEATED values: HTTP allows duplicate names, and a
+          map[string]string silently kept only the last one — a lossy capture in a
+          tool whose entire purpose is showing exactly what arrived (§3.4).
+        type: object
+      headers_truncated:
+        type: boolean
+      id:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      query:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      query_truncated:
+        type: boolean
+      received_at:
+        type: string
+      remote_ip:
+        type: string
+      signature_header:
+        type: string
+      signature_valid:
+        description: |-
+          SignatureValid has THREE states and nil is not false: nil means no signature
+          header was sent at all. The inbox always has a secret, so "nothing to check
+          with" is unreachable here — unlike /jwt/decode, whose null means the server
+          has no key. The UI must not borrow that wording (§2.1).
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: |-
+    REST API for practicing QA automation and API testing.
+
+    **Base URL:** /api/v1
+
+    **Authentication:**
+    - Create a user with POST /users/create to receive an access_token
+    - Or use POST /login with existing credentials to get a new access_token
+    - Include the token in Authorization header as: Bearer {your_access_token}
+    - Token required for: PUT, PATCH, DELETE operations
+
+    **Auto-Deletion:**
+    - All users are automatically deleted after 24 hours (TTL)
+    - Maximum 1,000,000 users allowed in database
+
+    **Rate Limiting:**
+    - User creation: 100 requests per minute per IP
+    - General API: 10 requests per second
+
+    **Quick Start:**
+    1. POST /users/create with email, username, password, profile.first_name, profile.last_name
+    2. Save the access_token from response
+    3. Use the token for authenticated operations (PUT, PATCH, DELETE)
+  title: User API
+  version: "1.0"
+paths:
+  /admin/stats:
+    get:
+      description: Counts computed in ONE aggregation, so the three numbers are a
+        single snapshot of a collection that a 24h TTL index is deleting from underneath.
+        `by_role` always carries every role key, zero-filled — an absent key would
+        be indistinguishable from a serialisation bug. Documents written before `metadata.role`
+        existed are counted as `user`, which is the truth about their effective permissions.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdminStatsResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Valid token, but the account is not an admin
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Aggregate account statistics (admin)
+      tags:
+      - Admin
+  /admin/users:
+    get:
+      description: 'The ordinary user list plus `has_active_token` per row — whether
+        that account is currently logged in. Accepts the same page/per_page/sort/filter/search
+        contract as GET /users/list, validated by the same code. NOTE what it does
+        not add: `metadata.last_login_ip` stays owner-only even here. An admin token
+        is not a way around it, because the seed code that mints an admin is published
+        — if admins could read it, closing the leak would mean nothing.'
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: field:asc|desc
+        example: created_at:desc
+        in: query
+        name: sort
+        type: string
+      - description: field:value
+        example: role:admin
+        in: query
+        name: filter
+        type: string
+      - description: Substring match
+        example: john
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdminUsersListResponse'
+        "400":
+          description: Invalid pagination, sort or filter
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Valid token, but the account is not an admin
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users with the operator fields (admin)
+      tags:
+      - Admin
+  /admin/users/{id}:
+    delete:
+      description: 'Scoped to your own account on this practice server, for the same
+        reason SetRole is: the seed code is published, so an unscoped delete would
+        let any visitor remove other students'' accounts and the sandbox users the
+        challenge system verifies against. Deleting yourself also invalidates your
+        token, so the next admin call answers 401 — a clean demonstration that 401
+        and 403 are different failures.'
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Deleted; no body
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Not an admin, or the target is not your own account
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user (admin)
+      tags:
+      - Admin
+  /admin/users/{id}/role:
+    patch:
+      consumes:
+      - application/json
+      description: 'Privilege management. Allowed values are `user` and `admin`; the
+        data model''s enum also contains `moderator`, but v1 refuses to grant it —
+        that difference is deliberate, not an oversight. On this practice server the
+        target must be your OWN account: admins are obtainable by anyone with the
+        published seed code, so cross-user mutation would let one student rewrite
+        another''s. Demoting yourself from admin to user is the intended exercise,
+        and it is irreversible without a new seed call.'
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.SetRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Role not in user, admin
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Not an admin, or the target is not your own account
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change a user's role (admin)
+      tags:
+      - Admin
+  /bug-reports:
+    get:
+      description: The authenticated player's reports, newest first. `total` (all
+        reports of the player) and `reports` come from one snapshot, `returned` =
+        len(reports). No PII.
+      parameters:
+      - default: 20
+        description: Page size (1..50)
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BugReportListResponse'
+        "400":
+          description: limit out of range
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: My bug reports
+      tags:
+      - Buggy
+    post:
+      consumes:
+      - application/json
+      description: 'Deterministic scoring of a bug report about one of the catalog
+        bugs — five criteria (has_steps 25, steps_reproducible 20, expected_actual
+        25, severity_reasonable 15, title_quality 15), each with an `ok`/`fail` feedback
+        item and the parameters that explain the rule. Bearer is OPTIONAL: with a
+        valid token the report is stored for 24h (201, `saved:true`, `report_id`),
+        without a header it is only scored (200, `saved:false`, nothing stored). A
+        presented but invalid/expired token is a 401, never a silent anonymous submit.'
+      parameters:
+      - description: The report (steps 1..20 non-blank lines, severity low|medium|high|critical)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.BugReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Anonymous: scored, not stored'
+          schema:
+            $ref: '#/definitions/models.BugReportResponse'
+        "201":
+          description: Stored for the authenticated player
+          schema:
+            $ref: '#/definitions/models.BugReportResponse'
+        "400":
+          description: Missing/blank/too long fields, unknown severity
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Authorization header present but the token is invalid or expired
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: bug_id is not in the catalog
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "413":
+          description: Body larger than 64 KiB
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "429":
+          description: On average 30 reports per minute per IP (burst 10)
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - {}
+      summary: Submit a bug report (auto-scored)
+      tags:
+      - Buggy
+      x-auth-optional: true
+  /bug-reports/{id}:
+    get:
+      description: Full report of the authenticated owner (steps, expected, actual,
+        score with feedback). A foreign, unknown or malformed id is the same 404 —
+        nothing about other players is revealed.
+      parameters:
+      - description: Report id
+        example: 6650a1b2c3d4e5f6a7b8c9d0
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BugReportDetailResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not this player's report
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: One of my bug reports
+      tags:
+      - Buggy
+  /buggy:
+    get:
+      description: 'The three intentionally buggy endpoints: id, method, path and
+        the i18n keys of title, description and EXPECTED behaviour (the frontend shows
+        the expectation behind a spoiler). No severity metadata — that would spoil
+        the bug-report scoring.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BugCatalogResponse'
+      summary: Bug catalog
+      tags:
+      - Buggy
+  /buggy/cart/total:
+    post:
+      consumes:
+      - application/json
+      description: '**This endpoint contains an intentional logic bug** (practice):
+        the returned `total` is not sum(price × qty). Prices are parsed as exact decimals
+        (at most two fraction digits) and summed in integer cents, so rounding is
+        NOT the defect. Send two or more positions and check the arithmetic.'
+      parameters:
+      - description: Cart positions (1..50); price is a bare decimal number, qty 1..1000
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CartTotalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The total as the server computes it
+          schema:
+            $ref: '#/definitions/models.CartTotalResponse'
+        "400":
+          description: Body is not JSON, items empty, price not a 2-decimal number,
+            qty out of range
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Cart total (intentional wrong sum)
+      tags:
+      - Buggy
+  /buggy/items:
+    get:
+      description: '**This endpoint contains an intentional logic bug** (practice):
+        status 200 does not mean the value is right. A 25-item deterministic dataset
+        paginated by `page`/`per_page` — compare the number of returned items with
+        `per_page` on a full page and with `total`. Which pages reproduce the problem?'
+      parameters:
+      - default: 1
+        description: Page (1..1000000)
+        in: query
+        maximum: 1000000
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: Page size (1..50)
+        in: query
+        maximum: 50
+        minimum: 1
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: One page — count the items yourself
+          schema:
+            $ref: '#/definitions/models.BuggyItemsResponse'
+        "400":
+          description: page / per_page out of range or not a number
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Paginated items (intentional off-by-one)
+      tags:
+      - Buggy
+  /buggy/schedule:
+    get:
+      description: '**This endpoint contains an intentional logic bug** (practice):
+        the event starts at 09:00 LOCAL time of the requested IANA zone, but the returned
+        instant is shifted. `tz` is required — in UTC the defect is invisible. Try
+        a zone with a DST transition on that date.'
+      parameters:
+      - description: Calendar date YYYY-MM-DD
+        example: "2026-03-29"
+        in: query
+        name: date
+        required: true
+        type: string
+      - description: IANA time zone
+        example: Europe/Moscow
+        in: query
+        name: tz
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: event_start in the zone + event_start_utc
+          schema:
+            $ref: '#/definitions/models.ScheduleResponse'
+        "400":
+          description: Missing/invalid date or tz
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Event schedule (intentional timezone shift)
+      tags:
+      - Buggy
+  /challenges:
+    get:
+      description: Public static catalog of server-verified challenges. `title`/`description`
+        are i18n keys resolved by the frontend; `params` is the schema of the verify
+        body (empty for the starter challenges). Progress is not mixed in — see GET
+        /challenges/progress.
+      parameters:
+      - description: Filter by category (crud, auth)
+        example: crud
+        in: query
+        name: category
+        type: string
+      - description: Filter by difficulty (easy, medium, hard)
+        example: easy
+        in: query
+        name: difficulty
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Catalog (unknown filter values match nothing)
+          schema:
+            $ref: '#/definitions/models.ChallengeListResponse'
+      summary: List challenges
+      tags:
+      - Challenges
+  /challenges/{id}/hints:
+    get:
+      description: 'Public: how many hints a challenge has and their kinds (1 nudge,
+        2 approach, 3 solution). Never carries the hint keys/texts — those come only
+        from POST /challenges/{id}/hints/reveal (which records the reveal) and from
+        GET /challenges/progress (already revealed).'
+      parameters:
+      - description: Challenge id
+        example: delete-user-404
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Levels without text
+          schema:
+            $ref: '#/definitions/models.HintsResponse'
+        "404":
+          description: Unknown challenge id
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Hint metadata
+      tags:
+      - Challenges
+  /challenges/{id}/hints/reveal:
+    post:
+      consumes:
+      - application/json
+      description: 'Reveals hints strictly in order. The body names the level you
+        want: an already revealed level (idempotent repeat — same answer, nothing
+        recorded) or exactly the next one (recorded). Asking for a level above the
+        next one is refused with 409 — nothing is skipped, and a retried request can
+        never reveal more than you asked for. The answer always carries every revealed
+        level (`revealed`) so one response restores the state. Revealing does not
+        require an open attempt; the level revealed at the moment of a solve is snapshotted
+        into progress as `hints_used`.'
+      parameters:
+      - description: Challenge id
+        example: delete-user-404
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Level to reveal (1..3): the next one or an already revealed
+          one'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.RevealRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Revealed levels (cumulative)
+          schema:
+            $ref: '#/definitions/models.RevealResponse'
+        "400":
+          description: Body is not JSON or level is missing / not an integer 1..3
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Unknown challenge id
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Level above the next one — reveal the previous levels first
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reveal a hint level
+      tags:
+      - Challenges
+  /challenges/{id}/start:
+    post:
+      description: Creates a server-owned sandbox user for the player and records
+        the baseline the verifier will compare against. 201 = fresh attempt with the
+        sandbox credentials (email, username, password, access_token). 200 = the existing
+        open attempt (credentials without the token — log in to get one; `target_missing:true`
+        when the sandbox no longer exists, use `?reset=true`), or `already_solved:true`
+        when the challenge is solved (nothing is created — one solve per player and
+        challenge). `reset=true` abandons the open attempt, deletes its sandbox and
+        issues a new one. Same rate budget as POST /users/create.
+      parameters:
+      - description: Challenge id
+        example: delete-user-404
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: false
+        description: Abandon the open attempt and start a fresh one
+        in: query
+        name: reset
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Existing open attempt, or already solved
+          schema:
+            $ref: '#/definitions/models.StartResponse'
+        "201":
+          description: New attempt with sandbox credentials
+          schema:
+            $ref: '#/definitions/models.StartResponse'
+        "400":
+          description: reset must be true or false
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Missing, malformed, unknown or expired token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Unknown challenge id
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: No open attempt could be issued (concurrent reset) — start
+            again
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "429":
+          description: Rate limit (shared with user creation)
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "503":
+          description: Database limit reached
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start (or reset) an attempt
+      tags:
+      - Challenges
+  /challenges/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      description: 'Checks that the attempt''s sandbox moved from its baseline to
+        the goal state. 200 for both outcomes: `solved:true` (with `points_awarded`,
+        or `already_solved:true` and 0 points on a repeat) or `solved:false` with
+        a `detail` explaining what is still missing. Body is optional: `attempt_id`
+        pins an attempt (otherwise the open one is used); `params` must match the
+        challenge''s declared schema (empty for the starter challenges — any key is
+        rejected). Repeated and concurrent verifies are idempotent and return the
+        original `solved_at`.'
+      parameters:
+      - description: Challenge id
+        example: delete-user-404
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional attempt_id and params
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/models.VerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification result (solved or not yet)
+          schema:
+            $ref: '#/definitions/models.VerifyResponse'
+        "400":
+          description: Body is not JSON, params is null/not an object, unknown or
+            missing param
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          descr
+… truncated (167534 chars in total)
