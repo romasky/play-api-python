@@ -1,0 +1,76 @@
+{
+  "users": [
+    {
+      "id": "6ae5f9f88a6e647a79dcf42e",
+      "email": "sandbox-d0c8042ccc8006940a0ed18b5d93c058@play-qa.com",
+      "username": "sandbox_d0c8042ccc8006940a0e",
+      "profile": {
+        "first_name": "Sandbox",
+        "last_name": "User"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-31T14:23:52.821Z",
+        "updated_at": "2026-10-31T14:23:52.821Z",
+        "expires_at": "2026-11-01T14:23:52.821Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    },
+    {
+      "id": "6ae5f9f88a6e647a79dcf42d",
+      "email": "xhffokl8ha@play-qa.com",
+      "username": "user_brx8s1pu",
+      "profile": {
+        "first_name": "Leslie",
+        "last_name": "Daniels"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-10-31T14:23:52.348Z",
+        "updated_at": "2026-10-31T14:23:52.348Z",
+        "expires_at": "2026-11-01T14:23:52.348Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    }
+  ],
+  "page": 1,
+  "per_page": 2,
+  "total": 845,
+  "total_pages": 423
+}

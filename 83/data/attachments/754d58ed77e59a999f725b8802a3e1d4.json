@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "CORRUPTED_FILE",
+    "message": "The content does not match the file extension",
+    "details": ".png should contain image/png but the content is text/plain"
+  },
+  "timestamp": "2026-10-31T14:25:58.812043037Z",
+  "request_id": "53dc0a5c-6db2-4c88-9131-70f8cad319a2"
+}
