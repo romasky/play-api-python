@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "RESERVED_LOCAL_PART",
+    "message": "That address is reserved for the SMTP Response Simulator. Sending to it returns a fixed SMTP failure, so it cannot be used as a mailbox. Please choose a different local part.",
+    "details": "local part is reserved"
+  },
+  "timestamp": "2026-11-01T14:51:06.019893613Z",
+  "request_id": "a86cc7d2-3ae1-4721-ad11-d816361d60a8"
+}

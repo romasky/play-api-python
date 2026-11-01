@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_SEED_CODE",
+    "message": "Invalid admin seed code",
+    "details": "This is 403, not 401: no identity was claimed, so nothing failed to authenticate — the request simply may not do this"
+  },
+  "timestamp": "2026-11-01T14:50:15.563813186Z",
+  "request_id": "fdb40189-7efe-4f78-b7ad-5e5f1f88cc5a"
+}
