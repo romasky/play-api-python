@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "header": {
+    "alg": "HS256",
+    "typ": "JWT"
+  },
+  "payload": {
+    "email": "dplg5hba8d@play-qa.com",
+    "exp": 1793642286,
+    "iat": 1793642285,
+    "iss": "play-qa.com",
+    "jti": "f1ac69b5ddfc45c5b51faf09cd83d082",
+    "sub": "6ae8cf208a6e647a79dcfb85",
+    "type": "access"
+  },
+  "signature_valid": true,
+  "expired": true,
+  "expires_at": "2026-11-02T17:58:06Z",
+  "issued_at": "2026-11-02T17:58:05Z"
+}

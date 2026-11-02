@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "total": 2,
+  "challenges": [
+    {
+      "id": "logout-revokes-token",
+      "title": "challenge.logout-revokes-token.title",
+      "description": "challenge.logout-revokes-token.desc",
+      "category": "auth",
+      "difficulty": "medium",
+      "points": 20,
+      "hint_count": 3,
+      "params": []
+    },
+    {
+      "id": "login-rotates-token",
+      "title": "challenge.login-rotates-token.title",
+      "description": "challenge.login-rotates-token.desc",
+      "category": "auth",
+      "difficulty": "medium",
+      "points": 20,
+      "hint_count": 3,
+      "params": []
+    }
+  ]
+}
