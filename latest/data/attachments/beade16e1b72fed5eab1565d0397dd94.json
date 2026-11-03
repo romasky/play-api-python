@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "json: cannot unmarshal number into Go struct field SendToRequest.to of type string"
+  },
+  "timestamp": "2026-11-03T15:59:05.177913028Z",
+  "request_id": "1aa195e1-52fd-4945-9120-f9188b162d36"
+}
