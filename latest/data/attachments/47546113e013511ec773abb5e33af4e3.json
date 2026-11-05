@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "seed code must be at most 128 characters long"
+  },
+  "timestamp": "2026-11-05T16:17:16.267560767Z",
+  "request_id": "8d25d21a-ff22-4917-9252-c595bfb34087"
+}

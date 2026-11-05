@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_SORT_FIELD",
+    "message": "sort field is not sortable",
+    "details": "sort field is not sortable: sort field \"Username\" is not sortable; allowed: created_at, email, last_login_at, login_count, updated_at, username"
+  },
+  "timestamp": "2026-11-05T16:17:04.636984075Z",
+  "request_id": "1d9c6d6f-8b6b-4817-ba97-ff9b6f521380"
+}

@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_VALUE",
+    "message": "filter value is not valid for this field",
+    "details": "filter value is not valid for this field: \"root\" for \"role\" must be one of user, admin, moderator"
+  },
+  "timestamp": "2026-11-05T16:16:21.574883504Z",
+  "request_id": "28258f36-455f-4589-bbbb-5c8f68953a22"
+}

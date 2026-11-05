@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "json: cannot unmarshal string into Go struct field JWTLoginRequest.access_ttl_seconds of type int"
+  },
+  "timestamp": "2026-11-05T16:18:31.024051711Z",
+  "request_id": "ffabb8b7-047b-455b-af48-b8b33eed7c02"
+}

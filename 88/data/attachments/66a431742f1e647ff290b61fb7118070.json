@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "json: cannot unmarshal number into Go struct field CreateAdminRequest.seed_code of type string"
+  },
+  "timestamp": "2026-11-05T16:17:17.660080274Z",
+  "request_id": "88bdf7c8-422f-46a0-a2e1-0ff1e5110653"
+}
