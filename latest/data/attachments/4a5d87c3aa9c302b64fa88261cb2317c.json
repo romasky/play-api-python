@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_JWT_FORMAT",
+    "message": "The value is not a well-formed JWT",
+    "details": "the token is not a well-formed JWT: expected three dot-separated segments, got 2"
+  },
+  "timestamp": "2026-11-06T15:46:15.901991013Z",
+  "request_id": "f9e2e2e4-4b7a-46c7-8275-37e96c5ad0cc"
+}

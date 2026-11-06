@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "total": 4,
+  "challenges": [
+    {
+      "id": "delete-user-404",
+      "title": "challenge.delete-user-404.title",
+      "description": "challenge.delete-user-404.desc",
+      "category": "crud",
+      "difficulty": "easy",
+      "points": 10,
+      "hint_count": 3,
+      "params": []
+    },
+    {
+      "id": "patch-first-name",
+      "title": "challenge.patch-first-name.title",
+      "description": "challenge.patch-first-name.desc",
+      "category": "crud",
+      "difficulty": "easy",
+      "points": 10,
+      "hint_count": 3,
+      "params": []
+    },
+    {
+      "id": "logout-revokes-token",
+      "title": "challenge.logout-revokes-token.title",
+      "description": "challenge.logout-revokes-token.desc",
+      "category": "auth",
+      "difficulty": "medium",
+      "points": 20,
+      "hint_count": 3,
+      "params": []
+    },
+    {
+      "id": "login-rotates-token",
+      "title": "challenge.login-rotates-token.title",
+      "description": "challenge.login-rotates-token.desc",
+      "category": "auth",
+      "difficulty": "medium",
+      "points": 20,
+      "hint_count": 3,
+      "params": []
+    }
+  ]
+}

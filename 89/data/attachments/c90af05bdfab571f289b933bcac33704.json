@@ -1,0 +1,40 @@
+{
+  "seed": "20",
+  "count": 5,
+  "fail_rate": 0.5,
+  "fail_status": 500,
+  "steps": [
+    {
+      "index": 0,
+      "roll": 0.21146163723468625,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 1,
+      "roll": 0.026520406296100862,
+      "status": 500,
+      "failed": true
+    },
+    {
+      "index": 2,
+      "roll": 0.7814617738666457,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 3,
+      "roll": 0.9095436334855602,
+      "status": 200,
+      "failed": false
+    },
+    {
+      "index": 4,
+      "roll": 0.3667225159537948,
+      "status": 500,
+      "failed": true
+    }
+  ],
+  "first_success_index": 2,
+  "fails_total": 3
+}
