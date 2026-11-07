@@ -1,0 +1,23 @@
+{
+  "date": "Sat, 07 Nov 2026 14:45:08 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "transfer-encoding": "chunked",
+  "connection": "keep-alive",
+  "server": "cloudflare",
+  "vary": "Accept-Encoding",
+  "access-control-allow-credentials": "true",
+  "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With",
+  "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+  "access-control-expose-headers": "Link, X-Total-Count, X-Request-ID",
+  "content-disposition": "attachment; filename=\"play-qa-openapi.json\"",
+  "x-request-id": "caddff6c-0625-4cb8-a91d-4fb8eee2cfd5",
+  "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+  "pragma": "no-cache",
+  "expires": "0",
+  "content-encoding": "gzip",
+  "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+  "cf-cache-status": "DYNAMIC",
+  "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=PRRdZHfkQw8KnOW9T9WVUYPiT1gs3PEPcTg5oMOKbDGVSCjKsL%2FeBJQFc6aEf%2FM2AgQDcYPVh9NUTBiWsK0gawBNh66cbqeTeJKAO9ROXqjNb%2FC6ZmzaPukMyWB08aMbquw%3D\"}]}",
+  "cf-ray": "a56d1eb43cbd1ffb-LAX",
+  "alt-svc": "h3=\":443\"; ma=86400"
+}
