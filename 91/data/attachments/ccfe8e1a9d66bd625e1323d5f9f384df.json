@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_JWT_FORMAT",
+    "message": "The value is not a well-formed JWT",
+    "details": "the token is not a well-formed JWT: the signature segment carries base64 padding, which RFC 7515 does not allow"
+  },
+  "timestamp": "2026-11-08T14:51:51.991505117Z",
+  "request_id": "58184bcb-bbf9-40cf-9f1a-0af5ba591046"
+}
