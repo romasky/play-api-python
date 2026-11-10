@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "steps must be at most 20 characters long"
+  },
+  "timestamp": "2026-11-10T16:13:58.70731196Z",
+  "request_id": "5e00c966-37e4-444d-a912-af9fb9b34d70"
+}
