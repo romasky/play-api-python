@@ -1,0 +1,23 @@
+{
+  "date": "Wed, 11 Nov 2026 15:56:13 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "705",
+  "connection": "keep-alive",
+  "server": "cloudflare",
+  "access-control-allow-credentials": "true",
+  "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With",
+  "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+  "access-control-expose-headers": "Link, X-Total-Count, X-Request-ID",
+  "access-control-max-age": "600",
+  "x-request-id": "ff07fea5-3dea-494d-8809-3479f11a6a19",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-frame-options": "SAMEORIGIN",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss://play-qa.com wss://www.play-qa.com https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com; frame-src 'self' https://www.google.com; frame-ancestors 'self';",
+  "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+  "cf-cache-status": "DYNAMIC",
+  "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=HHwgkYMcz2gYl%2Bb%2F6%2BhBVekzfsAAj4EVF0MhYJ3WM6yE3qw20LkfrnMInnXYpj%2FR4vRNqkeogXzrhDv21XUjHXYQhvML22s3vOuWdJY33%2B6WpjCNg0BCcBTR1wvc3z3kuTY%3D\"}]}",
+  "cf-ray": "a58e7c553a0098ba-STL",
+  "alt-svc": "h3=\":443\"; ma=86400"
+}

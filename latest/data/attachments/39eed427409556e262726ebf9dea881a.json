@@ -1,0 +1,24 @@
+{
+  "method": "GET",
+  "path": "/api/v1/chaos/echo",
+  "headers": {
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip, br",
+    "Cdn-Loop": "cloudflare; loops=1",
+    "Cf-Connecting-Ip": "132.196.6.65",
+    "Cf-Ipcountry": "US",
+    "Cf-Ray": "a58e7e230f0f1470-AMS",
+    "Cf-Visitor": "{\"scheme\":\"https\"}",
+    "Cookie": "***",
+    "User-Agent": "python-httpx2/2.12.0",
+    "X-Forwarded-For": "132.196.6.65, 162.159.113.125",
+    "X-Forwarded-Proto": "https",
+    "X-Real-Ip": "162.159.113.125"
+  },
+  "query": {},
+  "body": null,
+  "raw_body": "",
+  "truncated": false,
+  "client_ip": "132.196.6.65",
+  "request_id": "ebef5ce8-d56c-44be-a97a-c82ca00589cd"
+}

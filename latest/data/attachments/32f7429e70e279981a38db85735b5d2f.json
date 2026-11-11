@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "bug_id": "pagination-off-by-one",
+  "page": 2,
+  "per_page": 24,
+  "total": 25,
+  "items": [
+    {
+      "id": 25,
+      "sku": "ITEM-025",
+      "name": "Practice item 25",
+      "price": 31.25
+    }
+  ]
+}
