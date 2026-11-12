@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_VALUE",
+    "message": "filter value is not valid for this field",
+    "details": "filter value is not valid for this field: \"1\" for \"is_active\" must be true or false"
+  },
+  "timestamp": "2026-11-12T16:40:11.777807621Z",
+  "request_id": "3e9a3c3d-c5c9-496e-bf81-fd9eef91bab2"
+}

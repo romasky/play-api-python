@@ -1,0 +1,18 @@
+{
+  "date": "Thu, 12 Nov 2026 16:41:30 GMT",
+  "connection": "keep-alive",
+  "server": "cloudflare",
+  "access-control-allow-credentials": "true",
+  "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With",
+  "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+  "access-control-expose-headers": "Link, X-Total-Count, X-Request-ID",
+  "x-request-id": "b286315b-873e-48c1-a9b9-d8c694f182e3",
+  "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+  "pragma": "no-cache",
+  "expires": "0",
+  "cf-cache-status": "DYNAMIC",
+  "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=eZYJZWBl2BRRpbgsrmdg%2F%2F4DVG0sWhLX9tfn0%2BfTreL39kokvdgcdO4BHdTo1K0%2F9vBgWa9dZAnl9paafNgvzVbk0%2B97ZimmV4oqcgqe8koeg5OAN0MOuK0dYRy4m0%2F2%2FEc%3D\"}]}",
+  "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+  "cf-ray": "a596fc0e79276c04-DFW",
+  "alt-svc": "h3=\":443\"; ma=86400"
+}
