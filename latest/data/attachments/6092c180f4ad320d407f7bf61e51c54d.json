@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "FILE_TOO_LARGE",
+    "message": "The upload is too large",
+    "details": "The whole request body must be at most 5 MiB plus a small multipart overhead"
+  },
+  "timestamp": "2026-11-13T16:01:38.672766405Z",
+  "request_id": "90a45527-0084-4bf1-8ace-91a53fc46031"
+}

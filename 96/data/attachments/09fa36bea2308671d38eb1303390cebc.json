@@ -1,0 +1,59 @@
+{
+  "id": "evt_af154a38cea1c32e",
+  "method": "POST",
+  "path": "/api/v1/webhooks/in/e2e166c0-5028-4fe7-8dda-0568eb74df27",
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Accept-Encoding": [
+      "gzip, br"
+    ],
+    "Cdn-Loop": [
+      "cloudflare; loops=1"
+    ],
+    "Cf-Connecting-Ip": [
+      "172.182.226.198"
+    ],
+    "Cf-Ipcountry": [
+      "US"
+    ],
+    "Cf-Ray": [
+      "a59efccd1f6b3b32-AMS"
+    ],
+    "Cf-Visitor": [
+      "{\"scheme\":\"https\"}"
+    ],
+    "Content-Length": [
+      "18"
+    ],
+    "Content-Type": [
+      "application/json"
+    ],
+    "User-Agent": [
+      "python-httpx2/2.12.0"
+    ],
+    "X-Forwarded-For": [
+      "172.182.226.198, 172.71.99.107"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Playqa-Signature": [
+      "t=1794586207,v1=b0fbb5ad2909a31f7038c2d8d1eba890c0c52ffd73e419e12379e33e0f885417"
+    ],
+    "X-Real-Ip": [
+      "172.71.99.107"
+    ]
+  },
+  "headers_truncated": false,
+  "query_truncated": false,
+  "content_type": "application/json",
+  "body": "{\"event\":\"signed\"}",
+  "body_size": 18,
+  "body_encoding": "utf8",
+  "remote_ip": "172.182.226.198",
+  "signature_header": "t=1794586207,v1=b0fbb5ad2909a31f7038c2d8d1eba890c0c52ffd73e419e12379e33e0f885417",
+  "signature_valid": false,
+  "received_at": "2026-11-13T16:00:07.298Z"
+}
