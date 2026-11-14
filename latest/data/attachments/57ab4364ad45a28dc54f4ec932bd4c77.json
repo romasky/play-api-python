@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid query parameter",
+    "details": "interval_ms must be between 100 and 2000"
+  },
+  "timestamp": "2026-11-14T14:52:54.694655091Z",
+  "request_id": "f557c534-d45f-4657-ab5f-846105c02aec"
+}

@@ -1,0 +1,1122 @@
+{
+  "item": [
+    {
+      "name": "Users",
+      "description": "User CRUD operations and management",
+      "item": [
+        {
+          "name": "positive",
+          "item": [
+            {
+              "name": "Create a new user",
+              "request": {
+                "name": "Create a new user",
+                "description": {
+                  "content": "Creates a new user with comprehensive profile data. Returns an access_token required for authenticated operations (PUT, PATCH, DELETE). The user will be automatically deleted after 24 hours (TTL). Required fields: email, username, password (min 8 chars), profile.first_name, profile.last_name. Email must be unique, username must be 3-30 alphanumeric characters.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "create"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"qa_{{uniqueSuffix}}@example.com\",\n  \"password\": \"password123\",\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"username\": \"qa_{{uniqueSuffix}}\",\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// One collision-resistant suffix per run so email and username stay in sync.",
+                      "const makeSuffix = function makeSuffix(nowMs, rand) {\n  return nowMs.toString(36) + Math.floor(rand * 36 ** 4).toString(36).padStart(4, \"0\");\n};",
+                      "pm.variables.set(\"uniqueSuffix\", makeSuffix(Date.now(), Math.random()));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set(\"token\", body.access_token);",
+                      "  pm.collectionVariables.set(\"userId\", body.id);",
+                      "  pm.collectionVariables.set(\"userEmail\", body.email);",
+                      "  pm.collectionVariables.set(\"userUsername\", body.username);",
+                      "  pm.collectionVariables.set(\"userPassword\", JSON.parse(pm.request.body.raw).password);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create an admin account (seed code required)",
+              "request": {
+                "name": "Create an admin account (seed code required)",
+                "description": {
+                  "content": "Mints an account with `metadata.role = \"admin\"`. The public POST /users/create can NEVER do this: `CreateUserRequest` has no role field at all, so privilege has no wire slot there — it is a structural guarantee, not a validation rule. Escalation happens only through this privileged path, which is the honest lesson. The seed code is published in the UI so every student gets their OWN admin; what keeps that safe is the data boundary, not the credential — admin mutations under /admin/* are scoped to your own account.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "create-admin"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin_{{uniqueSuffix}}@example.com\",\n  \"password\": \"password123\",\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"username\": \"admin_{{uniqueSuffix}}\",\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"seed_code\": \"play-qa-admin\",\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// One collision-resistant suffix per run so email and username stay in sync.",
+                      "const makeSuffix = function makeSuffix(nowMs, rand) {\n  return nowMs.toString(36) + Math.floor(rand * 36 ** 4).toString(36).padStart(4, \"0\");\n};",
+                      "pm.variables.set(\"uniqueSuffix\", makeSuffix(Date.now(), Math.random()));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set(\"adminToken\", body.access_token);",
+                      "  pm.collectionVariables.set(\"adminUserId\", body.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "List users with pagination, sorting, filtering and search",
+              "request": {
+                "name": "List users with pagination, sorting, filtering and search",
+                "description": {
+                  "content": "Returns one page of users plus exact total metadata. No authentication required. Defaults apply only when a parameter is ABSENT: a present-but-empty value (?sort=, ?filter=, ?search=, ?limit=) is rejected with 400. Validation order (first error wins): page → limit → per_page → sort → filter → search. Pagination: page 1-1000000; limit 1-100 (values above 100 are clamped to 100, per_page is a legacy alias — limit wins when both are given); a page beyond the last one returns 200 with an empty users array (no error). Sorting: sort=field[:asc|desc], default created_at:desc; sortable fields: created_at, updated_at, login_count, last_login_at, username, email. Non-unique fields get an _id tie-breaker in the same direction, so the order is deterministic for unchanged data (equal values never swap between pages); string sorting is binary (byte order, uppercase before lowercase); last_login_at may be null — nulls sort first ascending. Filtering: filter=field:value, repeatable; different fields are ANDed, the same field twice is rejected (DUPLICATE_FILTER_FIELD), max 10 filters; filterable fields: role (user|admin|moderator), is_active, is_verified, is_premium (strictly true|false), employment.status (employed|unemployed|student|retired|freelancer), settings.theme (light|dark|system), settings.language (2 lowercase letters), address.country (exact match, 1-64 characters). Only whitelisted fields and typed values ever reach the database — the input cannot inject query operators. Search: search=<1-64 characters>, case-insensitive substring over username, email, profile.first_name and profile.last_name; regex metacharacters are escaped (search=.* matches literal \".*\"); combined with filters by AND; not index-backed. Response headers: X-Total-Count (exact number of matches before pagination — the same value as total in the body) and Link (RFC 8288: rel=\"first\", \"prev\", \"next\", \"last\"; prev/next only when they exist; every link keeps your sort/filter/search parameters and canonicalises per_page to limit). total is exact (CountDocuments) but a best-effort snapshot: the count and the page are two operations, so concurrent creates or TTL deletes may shift them slightly.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page number (1-1000000)",
+                        "type": "text/plain"
+                      },
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page size 1-100; values above 100 are clamped to 100",
+                        "type": "text/plain"
+                      },
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Legacy alias of limit (limit wins when both are given)",
+                        "type": "text/plain"
+                      },
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field[:asc|desc]. Fields: created_at, updated_at, login_count, last_login_at, username, email",
+                        "type": "text/plain"
+                      },
+                      "key": "sort",
+                      "value": "created_at:desc"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field:value, repeatable (AND across fields; the same field twice is rejected). Fields: role, is_active, is_verified, is_premium, employment.status, settings.theme, settings.language, address.country",
+                        "type": "text/plain"
+                      },
+                      "key": "filter",
+                      "value": "role:user"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Case-insensitive substring (1-64 characters) over username, email, first_name, last_name",
+                        "type": "text/plain"
+                      },
+                      "key": "search",
+                      "value": "john"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Get user by ID",
+              "request": {
+                "name": "Get user by ID",
+                "description": {
+                  "content": "Retrieves complete user data by user ID. No authentication required. Returns user profile, contacts, address, employment, settings, and metadata. The password field is never returned for security. ID must be a valid 24-character hexadecimal string.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "get",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID (24 hex characters)",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Check if user exists",
+              "request": {
+                "name": "Check if user exists",
+                "description": {
+                  "content": "Lightweight check for user existence. Returns HTTP 200 if user exists, 404 if not found. Check the X-User-Exists response header for boolean result (true/false). Supports both HEAD and GET methods (Cloudflare converts HEAD to GET).",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "exists",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Check if user exists",
+              "request": {
+                "name": "Check if user exists",
+                "description": {
+                  "content": "Lightweight check for user existence. Returns HTTP 200 if user exists, 404 if not found. Check the X-User-Exists response header for boolean result (true/false). Supports both HEAD and GET methods (Cloudflare converts HEAD to GET).",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "exists",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "method": "HEAD",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Get available API methods (OPTIONS)",
+              "request": {
+                "name": "Get available API methods (OPTIONS)",
+                "description": {
+                  "content": "Returns comprehensive API metadata including all available HTTP methods, endpoints, and authentication requirements. Implements HTTP OPTIONS method for API discovery. Use this to programmatically discover API capabilities, required authentication methods, and available operations. Perfect for API clients and documentation tools.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "options"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "OPTIONS",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Update user (PUT)",
+              "request": {
+                "name": "Update user (PUT)",
+                "description": {
+                  "content": "Full update (PUT). Requires Bearer Token authentication from user creation or /login. The core fields email, username and profile are required; contacts, address, employment and settings are optional. For partial updates where you send only the fields you want to change, use PATCH /users/patch/{id} instead. The access_token obtained from POST /users/create or POST /login must be included in Authorization header as \"Bearer {token}\".",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "update",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"username\": \"{{userUsername}}\",\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Partial user update (PATCH)",
+              "request": {
+                "name": "Partial user update (PATCH)",
+                "description": {
+                  "content": "Updates only specified fields, leaving others unchanged. Requires Bearer Token authentication. All fields are optional - include only fields you want to update. This is the preferred method for updating specific user attributes without replacing entire document. Supports updating email, username, profile, contacts, address, employment, and settings independently.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "patch",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PATCH",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Delete user by ID",
+              "request": {
+                "name": "Delete user by ID",
+                "description": {
+                  "content": "Permanently deletes a user from the database. Requires Bearer Token authentication. This operation cannot be undone. Returns 204 No Content on success (empty body). Use with caution in production. The Bearer token from user creation or login is required in Authorization header.\n\n**Destructive:** logout revokes the token, delete removes the user — run `Create a new user` again before the next chain.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "delete",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "type": "any",
+                      "value": "{{userId}}",
+                      "key": "id",
+                      "disabled": false,
+                      "description": {
+                        "content": "(Required) User ID",
+                        "type": "text/plain"
+                      }
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "negative",
+          "item": [
+            {
+              "name": "Create a new user → 400 VALIDATION_ERROR",
+              "request": {
+                "name": "Create a new user",
+                "description": {
+                  "content": "Negative case (empty body). Expected: **400 VALIDATION_ERROR**.\n\nCreates a new user with comprehensive profile data. Returns an access_token required for authenticated operations (PUT, PATCH, DELETE). The user will be automatically deleted after 24 hours (TTL). Required fields: email, username, password (min 8 chars), profile.first_name, profile.last_name. Email must be unique, username must be 3-30 alphanumeric characters.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "create"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"error code VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create a new user → 409 DUPLICATE_USER",
+              "request": {
+                "name": "Create a new user",
+                "description": {
+                  "content": "Negative case (duplicate email/username). Expected: **409 DUPLICATE_USER**. Run the positive `Create a new user` first (needs `{{userId}}` / `{{token}}`).\n\nCreates a new user with comprehensive profile data. Returns an access_token required for authenticated operations (PUT, PATCH, DELETE). The user will be automatically deleted after 24 hours (TTL). Required fields: email, username, password (min 8 chars), profile.first_name, profile.last_name. Email must be unique, username must be 3-30 alphanumeric characters.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "create"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"password123\",\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"username\": \"{{userUsername}}\",\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                      "pm.test(\"error code DUPLICATE_USER\", () => pm.expect(pm.response.json().error.code).to.eql(\"DUPLICATE_USER\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create an admin account (seed code required) → 403 INVALID_SEED_CODE",
+              "request": {
+                "name": "Create an admin account (seed code required)",
+                "description": {
+                  "content": "Negative case (wrong seed code). Expected: **403 INVALID_SEED_CODE**. An ABSENT code answers identically, so the response is not an oracle for whether the field was read.\n\nMints an account with `metadata.role = \"admin\"`. The public POST /users/create can NEVER do this: `CreateUserRequest` has no role field at all, so privilege has no wire slot there — it is a structural guarantee, not a validation rule. Escalation happens only through this privileged path, which is the honest lesson. The seed code is published in the UI so every student gets their OWN admin; what keeps that safe is the data boundary, not the credential — admin mutations under /admin/* are scoped to your own account.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "create-admin"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"wrong-seed@example.com\",\n  \"password\": \"password123\",\n  \"profile\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\",\n    \"bio\": \"Software developer passionate about QA\",\n    \"date_of_birth\": \"15.03.1990\",\n    \"gender\": \"male\",\n    \"interests\": [\n      \"programming\",\n      \"testing\"\n    ],\n    \"middle_name\": \"Michael\"\n  },\n  \"username\": \"wrongseed\",\n  \"address\": {\n    \"apartment\": \"42\",\n    \"building\": \"1\",\n    \"city\": \"San Francisco\",\n    \"coordinates\": {\n      \"latitude\": 37.7749,\n      \"longitude\": -122.4194\n    },\n    \"country\": \"United States\",\n    \"state\": \"California\",\n    \"street\": \"123 Main St\",\n    \"zip_code\": \"94102\"\n  },\n  \"contacts\": {\n    \"emergency_contact\": \"Jane Doe +1234567891\",\n    \"github\": \"https://github.com/johndoe\",\n    \"linkedin\": \"https://linkedin.com/in/johndoe\",\n    \"phone\": \"+1234567890\",\n    \"phone_verified\": false,\n    \"telegram\": \"@johndoe\",\n    \"website\": \"https://johndoe.com\",\n    \"whatsapp\": \"+1234567890\"\n  },\n  \"employment\": {\n    \"company\": \"Tech Corp\",\n    \"department\": \"Quality\",\n    \"position\": \"QA Engineer\",\n    \"salary\": {\n      \"amount\": 120000,\n      \"currency\": \"USD\"\n    },\n    \"start_date\": \"01.02.2020\",\n    \"status\": \"employed\"\n  },\n  \"seed_code\": \"definitely-not-the-code\",\n  \"settings\": {\n    \"email_notifications\": true,\n    \"language\": \"en\",\n    \"notifications_enabled\": true,\n    \"private_profile\": false,\n    \"sms_notifications\": false,\n    \"theme\": \"dark\",\n    \"timezone\": \"America/Los_Angeles\",\n    \"two_factor_enabled\": false\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                      "pm.test(\"error code INVALID_SEED_CODE\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_SEED_CODE\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "List users with pagination, sorting, filtering and search → 400 INVALID_PAGINATION",
+              "request": {
+                "name": "List users with pagination, sorting, filtering and search",
+                "description": {
+                  "content": "Negative case (page=0). Expected: **400 INVALID_PAGINATION**.\n\nReturns one page of users plus exact total metadata. No authentication required. Defaults apply only when a parameter is ABSENT: a present-but-empty value (?sort=, ?filter=, ?search=, ?limit=) is rejected with 400. Validation order (first error wins): page → limit → per_page → sort → filter → search. Pagination: page 1-1000000; limit 1-100 (values above 100 are clamped to 100, per_page is a legacy alias — limit wins when both are given); a page beyond the last one returns 200 with an empty users array (no error). Sorting: sort=field[:asc|desc], default created_at:desc; sortable fields: created_at, updated_at, login_count, last_login_at, username, email. Non-unique fields get an _id tie-breaker in the same direction, so the order is deterministic for unchanged data (equal values never swap between pages); string sorting is binary (byte order, uppercase before lowercase); last_login_at may be null — nulls sort first ascending. Filtering: filter=field:value, repeatable; different fields are ANDed, the same field twice is rejected (DUPLICATE_FILTER_FIELD), max 10 filters; filterable fields: role (user|admin|moderator), is_active, is_verified, is_premium (strictly true|false), employment.status (employed|unemployed|student|retired|freelancer), settings.theme (light|dark|system), settings.language (2 lowercase letters), address.country (exact match, 1-64 characters). Only whitelisted fields and typed values ever reach the database — the input cannot inject query operators. Search: search=<1-64 characters>, case-insensitive substring over username, email, profile.first_name and profile.last_name; regex metacharacters are escaped (search=.* matches literal \".*\"); combined with filters by AND; not index-backed. Response headers: X-Total-Count (exact number of matches before pagination — the same value as total in the body) and Link (RFC 8288: rel=\"first\", \"prev\", \"next\", \"last\"; prev/next only when they exist; every link keeps your sort/filter/search parameters and canonicalises per_page to limit). total is exact (CountDocuments) but a best-effort snapshot: the count and the page are two operations, so concurrent creates or TTL deletes may shift them slightly.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": false,
+                      "description": {
+                        "content": "Page number (1-1000000)",
+                        "type": "text/plain"
+                      },
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page size 1-100; values above 100 are clamped to 100",
+                        "type": "text/plain"
+                      },
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Legacy alias of limit (limit wins when both are given)",
+                        "type": "text/plain"
+                      },
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field[:asc|desc]. Fields: created_at, updated_at, login_count, last_login_at, username, email",
+                        "type": "text/plain"
+                      },
+                      "key": "sort",
+                      "value": "created_at:desc"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field:value, repeatable (AND across fields; the same field twice is rejected). Fields: role, is_active, is_verified, is_premium, employment.status, settings.theme, settings.language, address.country",
+                        "type": "text/plain"
+                      },
+                      "key": "filter",
+                      "value": "role:user"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Case-insensitive substring (1-64 characters) over username, email, first_name, last_name",
+                        "type": "text/plain"
+                      },
+                      "key": "search",
+                      "value": "john"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"error code INVALID_PAGINATION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_PAGINATION\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "List users with pagination, sorting, filtering and search → 400 INVALID_SORT_FIELD",
+              "request": {
+                "name": "List users with pagination, sorting, filtering and search",
+                "description": {
+                  "content": "Negative case (sort=foo). Expected: **400 INVALID_SORT_FIELD**.\n\nReturns one page of users plus exact total metadata. No authentication required. Defaults apply only when a parameter is ABSENT: a present-but-empty value (?sort=, ?filter=, ?search=, ?limit=) is rejected with 400. Validation order (first error wins): page → limit → per_page → sort → filter → search. Pagination: page 1-1000000; limit 1-100 (values above 100 are clamped to 100, per_page is a legacy alias — limit wins when both are given); a page beyond the last one returns 200 with an empty users array (no error). Sorting: sort=field[:asc|desc], default created_at:desc; sortable fields: created_at, updated_at, login_count, last_login_at, username, email. Non-unique fields get an _id tie-breaker in the same direction, so the order is deterministic for unchanged data (equal values never swap between pages); string sorting is binary (byte order, uppercase before lowercase); last_login_at may be null — nulls sort first ascending. Filtering: filter=field:value, repeatable; different fields are ANDed, the same field twice is rejected (DUPLICATE_FILTER_FIELD), max 10 filters; filterable fields: role (user|admin|moderator), is_active, is_verified, is_premium (strictly true|false), employment.status (employed|unemployed|student|retired|freelancer), settings.theme (light|dark|system), settings.language (2 lowercase letters), address.country (exact match, 1-64 characters). Only whitelisted fields and typed values ever reach the database — the input cannot inject query operators. Search: search=<1-64 characters>, case-insensitive substring over username, email, profile.first_name and profile.last_name; regex metacharacters are escaped (search=.* matches literal \".*\"); combined with filters by AND; not index-backed. Response headers: X-Total-Count (exact number of matches before pagination — the same value as total in the body) and Link (RFC 8288: rel=\"first\", \"prev\", \"next\", \"last\"; prev/next only when they exist; every link keeps your sort/filter/search parameters and canonicalises per_page to limit). total is exact (CountDocuments) but a best-effort snapshot: the count and the page are two operations, so concurrent creates or TTL deletes may shift them slightly.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page number (1-1000000)",
+                        "type": "text/plain"
+                      },
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page size 1-100; values above 100 are clamped to 100",
+                        "type": "text/plain"
+                      },
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Legacy alias of limit (limit wins when both are given)",
+                        "type": "text/plain"
+                      },
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "disabled": false,
+                      "description": {
+                        "content": "field[:asc|desc]. Fields: created_at, updated_at, login_count, last_login_at, username, email",
+                        "type": "text/plain"
+                      },
+                      "key": "sort",
+                      "value": "foo"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field:value, repeatable (AND across fields; the same field twice is rejected). Fields: role, is_active, is_verified, is_premium, employment.status, settings.theme, settings.language, address.country",
+                        "type": "text/plain"
+                      },
+                      "key": "filter",
+                      "value": "role:user"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Case-insensitive substring (1-64 characters) over username, email, first_name, last_name",
+                        "type": "text/plain"
+                      },
+                      "key": "search",
+                      "value": "john"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"error code INVALID_SORT_FIELD\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_SORT_FIELD\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "List users with pagination, sorting, filtering and search → 400 INVALID_SORT_DIR",
+              "request": {
+                "name": "List users with pagination, sorting, filtering and search",
+                "description": {
+                  "content": "Negative case (sort=created_at:sideways). Expected: **400 INVALID_SORT_DIR**.\n\nReturns one page of users plus exact total metadata. No authentication required. Defaults apply only when a parameter is ABSENT: a present-but-empty value (?sort=, ?filter=, ?search=, ?limit=) is rejected with 400. Validation order (first error wins): page → limit → per_page → sort → filter → search. Pagination: page 1-1000000; limit 1-100 (values above 100 are clamped to 100, per_page is a legacy alias — limit wins when both are given); a page beyond the last one returns 200 with an empty users array (no error). Sorting: sort=field[:asc|desc], default created_at:desc; sortable fields: created_at, updated_at, login_count, last_login_at, username, email. Non-unique fields get an _id tie-breaker in the same direction, so the order is deterministic for unchanged data (equal values never swap between pages); string sorting is binary (byte order, uppercase before lowercase); last_login_at may be null — nulls sort first ascending. Filtering: filter=field:value, repeatable; different fields are ANDed, the same field twice is rejected (DUPLICATE_FILTER_FIELD), max 10 filters; filterable fields: role (user|admin|moderator), is_active, is_verified, is_premium (strictly true|false), employment.status (employed|unemployed|student|retired|freelancer), settings.theme (light|dark|system), settings.language (2 lowercase letters), address.country (exact match, 1-64 characters). Only whitelisted fields and typed values ever reach the database — the input cannot inject query operators. Search: search=<1-64 characters>, case-insensitive substring over username, email, profile.first_name and profile.last_name; regex metacharacters are escaped (search=.* matches literal \".*\"); combined with filters by AND; not index-backed. Response headers: X-Total-Count (exact number of matches before pagination — the same value as total in the body) and Link (RFC 8288: rel=\"first\", \"prev\", \"next\", \"last\"; prev/next only when they exist; every link keeps your sort/filter/search parameters and canonicalises per_page to limit). total is exact (CountDocuments) but a best-effort snapshot: the count and the page are two operations, so concurrent creates or TTL deletes may shift them slightly.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page number (1-1000000)",
+                        "type": "text/plain"
+                      },
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page size 1-100; values above 100 are clamped to 100",
+                        "type": "text/plain"
+                      },
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Legacy alias of limit (limit wins when both are given)",
+                        "type": "text/plain"
+                      },
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "disabled": false,
+                      "description": {
+                        "content": "field[:asc|desc]. Fields: created_at, updated_at, login_count, last_login_at, username, email",
+                        "type": "text/plain"
+                      },
+                      "key": "sort",
+                      "value": "created_at:sideways"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field:value, repeatable (AND across fields; the same field twice is rejected). Fields: role, is_active, is_verified, is_premium, employment.status, settings.theme, settings.language, address.country",
+                        "type": "text/plain"
+                      },
+                      "key": "filter",
+                      "value": "role:user"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Case-insensitive substring (1-64 characters) over username, email, first_name, last_name",
+                        "type": "text/plain"
+                      },
+                      "key": "search",
+                      "value": "john"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {},
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"error code INVALID_SORT_DIR\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_SORT_DIR\"));"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "List users with pagination, sorting, filtering and search → 400 TOO_MANY_FILTERS",
+              "request": {
+                "name": "List users with pagination, sorting, filtering and search",
+                "description": {
+                  "content": "Negative case (11 filters). Expected: **400 TOO_MANY_FILTERS**.\n\nReturns one page of users plus exact total metadata. No authentication required. Defaults apply only when a parameter is ABSENT: a present-but-empty value (?sort=, ?filter=, ?search=, ?limit=) is rejected with 400. Validation order (first error wins): page → limit → per_page → sort → filter → search. Pagination: page 1-1000000; limit 1-100 (values above 100 are clamped to 100, per_page is a legacy alias — limit wins when both are given); a page beyond the last one returns 200 with an empty users array (no error). Sorting: sort=field[:asc|desc], default created_at:desc; sortable fields: created_at, updated_at, login_count, last_login_at, username, email. Non-unique fields get an _id tie-breaker in the same direction, so the order is deterministic for unchanged data (equal values never swap between pages); string sorting is binary (byte order, uppercase before lowercase); last_login_at may be null — nulls sort first ascending. Filtering: filter=field:value, repeatable; different fields are ANDed, the same field twice is rejected (DUPLICATE_FILTER_FIELD), max 10 filters; filterable fields: role (user|admin|moderator), is_active, is_verified, is_premium (strictly true|false), employment.status (employed|unemployed|student|retired|freelancer), settings.theme (light|dark|system), settings.language (2 lowercase letters), address.country (exact match, 1-64 characters). Only whitelisted fields and typed values ever reach the database — the input cannot inject query operators. Search: search=<1-64 characters>, case-insensitive substring over username, email, profile.first_name and profile.last_name; regex metacharacters are escaped (search=.* matches literal \".*\"); combined with filters by AND; not index-backed. Response headers: X-Total-Count (exact number of matches before pagination — the same value as total in the body) and Link (RFC 8288: rel=\"first\", \"prev\", \"next\", \"last\"; prev/next only when they exist; every link keeps your sort/filter/search parameters and canonicalises per_page to limit). total is exact (CountDocuments) but a best-effort snapshot: the count and the page are two operations, so concurrent creates or TTL deletes may shift them slightly.",
+                  "type": "text/markdown"
+                },
+                "url": {
+                  "path": [
+                    "users",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page number (1-1000000)",
+                        "type": "text/plain"
+                      },
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Page size 1-100; values above 100 are clamped to 100",
+                        "type": "text/plain"
+                      },
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "Legacy alias of limit (limit wins when both are given)",
+                        "type": "text/plain"
+                      },
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "disabled": true,
+                      "description": {
+                        "content": "field[:asc|desc]. Fields: created_at, updated_at, login_count, last_login_at, username, email",
+                        "type": "text/plain"
+                      
+… truncated (493908 chars in total)
