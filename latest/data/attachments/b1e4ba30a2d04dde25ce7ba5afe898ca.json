@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_FIELD",
+    "message": "filter field is not filterable",
+    "details": "filter field is not filterable: expected field:value, got \":user\"; allowed fields: address.country, employment.status, is_active, is_premium, is_verified, role, settings.language, settings.theme"
+  },
+  "timestamp": "2026-11-15T15:28:55.242604386Z",
+  "request_id": "1d639f66-a784-47f6-828d-b0712d1da09d"
+}

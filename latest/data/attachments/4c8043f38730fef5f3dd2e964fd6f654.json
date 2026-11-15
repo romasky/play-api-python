@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_FIELD",
+    "message": "filter field is not filterable",
+    "details": "filter field is not filterable: filter field \"metadata.role\" is not filterable; allowed: address.country, employment.status, is_active, is_premium, is_verified, role, settings.language, settings.theme"
+  },
+  "timestamp": "2026-11-15T15:28:55.762463549Z",
+  "request_id": "9df869f9-55f0-44f8-aba9-0175ab28d153"
+}

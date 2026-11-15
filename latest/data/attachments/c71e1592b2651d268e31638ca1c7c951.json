@@ -1,0 +1,11 @@
+{
+  "bug_id": "no-such-bug",
+  "title": "GET /buggy returns a wrong result",
+  "steps": [
+    "Open the Buggy API catalog",
+    "Call GET /buggy with the documented example"
+  ],
+  "expected": "The documented, mathematically correct result",
+  "actual": "A result that differs from the documented one",
+  "severity": "medium"
+}

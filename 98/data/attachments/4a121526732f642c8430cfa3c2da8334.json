@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_TIMEOUT",
+    "message": "after must be a finite number >= 0",
+    "details": "after must be a finite number >= 0: got -1"
+  },
+  "timestamp": "2026-11-15T15:29:19.895462274Z",
+  "request_id": "724a98f5-f6dc-4dd5-baac-8c7eccc2a41e"
+}

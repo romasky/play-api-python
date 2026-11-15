@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "You can only modify your own account",
+    "details": "Your token is valid and you are an admin, but this practice server scopes admin mutations to your own account so one student cannot delete another's work."
+  },
+  "timestamp": "2026-11-15T15:28:15.613036028Z",
+  "request_id": "acbd81a0-cfde-4946-a6fb-9f17a551e8a5"
+}

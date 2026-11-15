@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "NO_OPEN_ATTEMPT",
+    "message": "No open attempt for this challenge",
+    "details": "Start the challenge first (POST /challenges/{id}/start); an attempt may also have expired or been reset"
+  },
+  "timestamp": "2026-11-15T15:28:38.734436867Z",
+  "request_id": "2a20a863-177d-4ca5-b711-caadbeb348e1"
+}

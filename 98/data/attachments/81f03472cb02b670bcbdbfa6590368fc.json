@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_REDIRECT_TYPE",
+    "message": "redirect type must be one of 301, 302, 307, 308",
+    "details": "redirect type must be one of 301, 302, 307, 308: got \"303\""
+  },
+  "timestamp": "2026-11-15T15:29:13.037000038Z",
+  "request_id": "9e4adc92-aa53-4c54-a920-8c8cb11a4395"
+}

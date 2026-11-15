@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_VALUE",
+    "message": "filter value is not valid for this field",
+    "details": "filter value is not valid for this field: \"pirate\" for \"employment.status\" must be one of employed, unemployed, student, retired, freelancer"
+  },
+  "timestamp": "2026-11-15T15:28:56.978488645Z",
+  "request_id": "4d1e98ea-63bb-4c94-9b8b-862a883af0e8"
+}
