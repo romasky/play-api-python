@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "header": {
+    "alg": "HS256",
+    "typ": "JWT"
+  },
+  "payload": {
+    "email": "7830azrmip@play-qa.com",
+    "exp": 1794848675,
+    "iat": 1794845075,
+    "iss": "play-qa.com",
+    "jti": "d39fd5653227d5f8fe59f3933e23bec5",
+    "sub": "6afb459ce9b2e2de97f17467",
+    "type": "access"
+  },
+  "signature_valid": false,
+  "expired": true,
+  "expires_at": "2026-11-16T17:04:35Z",
+  "issued_at": "2026-11-16T16:04:35Z"
+}

@@ -1,0 +1,8 @@
+{
+  "bug_id": "cart-total-wrong",
+  "title": "POST /buggy/cart/total returns a wrong result",
+  "steps": [],
+  "expected": "The documented, mathematically correct result",
+  "actual": "A result that differs from the documented one",
+  "severity": "high"
+}
