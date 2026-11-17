@@ -1,0 +1,11 @@
+{
+  "bug_id": "timezone-shift",
+  "title": "GET /buggy/schedule returns a wrong result",
+  "steps": [
+    "Open the Buggy API catalog",
+    "Call GET /buggy/schedule with the documented example"
+  ],
+  "expected": "The documented, mathematically correct result",
+  "actual": "A result that differs from the documented one",
+  "severity": "high"
+}

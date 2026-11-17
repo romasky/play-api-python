@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request body",
+    "details": "Expected {\"role\":\"user\"} or {\"role\":\"admin\"}"
+  },
+  "timestamp": "2026-11-17T17:27:56.299111696Z",
+  "request_id": "03ec2d10-8945-4d97-a37e-4481e6b82753"
+}

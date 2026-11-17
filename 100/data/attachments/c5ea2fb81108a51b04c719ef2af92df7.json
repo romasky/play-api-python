@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "bug_id": "pagination-off-by-one",
+  "page": 3,
+  "per_page": 10,
+  "total": 25,
+  "items": [
+    {
+      "id": 21,
+      "sku": "ITEM-021",
+      "name": "Practice item 21",
+      "price": 26.25
+    },
+    {
+      "id": 22,
+      "sku": "ITEM-022",
+      "name": "Practice item 22",
+      "price": 27.5
+    },
+    {
+      "id": 23,
+      "sku": "ITEM-023",
+      "name": "Practice item 23",
+      "price": 28.75
+    },
+    {
+      "id": 24,
+      "sku": "ITEM-024",
+      "name": "Practice item 24",
+      "price": 30.0
+    },
+    {
+      "id": 25,
+      "sku": "ITEM-025",
+      "name": "Practice item 25",
+      "price": 31.25
+    }
+  ]
+}
