@@ -1,0 +1,30 @@
+{
+  "bug_id": "cart-total-wrong",
+  "title": "POST /buggy/cart/total returns a wrong result",
+  "steps": [
+    "step 0",
+    "step 1",
+    "step 2",
+    "step 3",
+    "step 4",
+    "step 5",
+    "step 6",
+    "step 7",
+    "step 8",
+    "step 9",
+    "step 10",
+    "step 11",
+    "step 12",
+    "step 13",
+    "step 14",
+    "step 15",
+    "step 16",
+    "step 17",
+    "step 18",
+    "step 19",
+    "step 20"
+  ],
+  "expected": "The documented, mathematically correct result",
+  "actual": "A result that differs from the documented one",
+  "severity": "high"
+}

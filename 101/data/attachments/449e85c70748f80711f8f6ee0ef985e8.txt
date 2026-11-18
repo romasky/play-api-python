@@ -1,0 +1,18 @@
+event: progress
+data: {"step":1,"total":5,"percent":20,"status":"running"}
+
+event: progress
+data: {"step":2,"total":5,"percent":40,"status":"running"}
+
+event: progress
+data: {"step":3,"total":5,"percent":60,"status":"running"}
+
+event: progress
+data: {"step":4,"total":5,"percent":80,"status":"running"}
+
+event: progress
+data: {"step":5,"total":5,"percent":100,"status":"running"}
+
+event: done
+data: {"status":"completed","total":5}
+
