@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_FILTER_VALUE",
+    "message": "filter value is not valid for this field",
+    "details": "filter value is not valid for this field: \"\" for \"address.country\" must be 1-64 characters"
+  },
+  "timestamp": "2026-11-19T17:10:33.406800726Z",
+  "request_id": "aec1ade5-0a74-4efd-a3fb-bbd82fa500b5"
+}

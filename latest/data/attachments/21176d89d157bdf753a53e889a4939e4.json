@@ -1,0 +1,76 @@
+{
+  "users": [
+    {
+      "id": "6aff2d7be9b2e2de97f17fb9",
+      "email": "300l6rb9kp@play-qa.com",
+      "username": "user_dljekweu",
+      "profile": {
+        "first_name": "Daniel",
+        "last_name": "Lopez"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-11-19T17:10:19.897Z",
+        "updated_at": "2026-11-19T17:10:19.897Z",
+        "expires_at": "2026-11-20T17:10:19.897Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    },
+    {
+      "id": "6aff2d7be9b2e2de97f17fb7",
+      "email": "sandbox-f24f8694634b2c7fd933c2f85b1546e3@play-qa.com",
+      "username": "sandbox_f24f8694634b2c7fd933",
+      "profile": {
+        "first_name": "Sandbox",
+        "last_name": "User"
+      },
+      "contacts": {
+        "phone_verified": false
+      },
+      "address": {},
+      "employment": {},
+      "settings": {
+        "language": "",
+        "timezone": "",
+        "theme": "",
+        "notifications_enabled": false,
+        "email_notifications": false,
+        "sms_notifications": false,
+        "two_factor_enabled": false,
+        "private_profile": false
+      },
+      "metadata": {
+        "created_at": "2026-11-19T17:10:19.364Z",
+        "updated_at": "2026-11-19T17:10:19.364Z",
+        "expires_at": "2026-11-20T17:10:19.364Z",
+        "login_count": 0,
+        "is_active": true,
+        "is_verified": false,
+        "is_premium": false,
+        "role": "user"
+      }
+    }
+  ],
+  "page": 1,
+  "per_page": 2,
+  "total": 339,
+  "total_pages": 170
+}

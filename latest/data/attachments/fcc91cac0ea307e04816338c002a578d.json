@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "header": {
+    "alg": "none",
+    "typ": "JWT"
+  },
+  "payload": {
+    "email": "gxud4yr07m@play-qa.com",
+    "exp": 1795109085,
+    "iat": 1795108185,
+    "iss": "play-qa.com",
+    "jti": "d34183d266345dd62d582fa2fbda1dfd",
+    "sub": "6aff2d59e9b2e2de97f17f52",
+    "type": "access"
+  },
+  "signature_valid": false,
+  "expired": false,
+  "expires_at": "2026-11-19T17:24:45Z",
+  "issued_at": "2026-11-19T17:09:45Z"
+}
