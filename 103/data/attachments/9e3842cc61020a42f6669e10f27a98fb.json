@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_COUNT",
+    "message": "count must be an integer in 1-50",
+    "details": "count must be an integer in 1-50: got 0"
+  },
+  "timestamp": "2026-11-20T16:49:13.22607528Z",
+  "request_id": "7d063804-f761-4397-ae79-82cb41acc70e"
+}

@@ -1,0 +1,63 @@
+{
+  "success": true,
+  "bug_id": "pagination-off-by-one",
+  "page": 2,
+  "per_page": 10,
+  "total": 25,
+  "items": [
+    {
+      "id": 11,
+      "sku": "ITEM-011",
+      "name": "Practice item 11",
+      "price": 13.75
+    },
+    {
+      "id": 12,
+      "sku": "ITEM-012",
+      "name": "Practice item 12",
+      "price": 15.0
+    },
+    {
+      "id": 13,
+      "sku": "ITEM-013",
+      "name": "Practice item 13",
+      "price": 16.25
+    },
+    {
+      "id": 14,
+      "sku": "ITEM-014",
+      "name": "Practice item 14",
+      "price": 17.5
+    },
+    {
+      "id": 15,
+      "sku": "ITEM-015",
+      "name": "Practice item 15",
+      "price": 18.75
+    },
+    {
+      "id": 16,
+      "sku": "ITEM-016",
+      "name": "Practice item 16",
+      "price": 20.0
+    },
+    {
+      "id": 17,
+      "sku": "ITEM-017",
+      "name": "Practice item 17",
+      "price": 21.25
+    },
+    {
+      "id": 18,
+      "sku": "ITEM-018",
+      "name": "Practice item 18",
+      "price": 22.5
+    },
+    {
+      "id": 19,
+      "sku": "ITEM-019",
+      "name": "Practice item 19",
+      "price": 23.75
+    }
+  ]
+}

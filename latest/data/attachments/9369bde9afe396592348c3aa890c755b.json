@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "challenge_id": "patch-first-name",
+  "level": 2,
+  "kind": "approach",
+  "hint": "challenge.patch-first-name.hint2",
+  "revealed_count": 2,
+  "hint_count": 3,
+  "has_more": true,
+  "revealed": [
+    {
+      "level": 1,
+      "kind": "nudge",
+      "hint": "challenge.patch-first-name.hint1"
+    },
+    {
+      "level": 2,
+      "kind": "approach",
+      "hint": "challenge.patch-first-name.hint2"
+    }
+  ]
+}
